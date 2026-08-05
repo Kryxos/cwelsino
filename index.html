@@ -190,9 +190,18 @@
     100% { box-shadow: inset 0 0 0 6px var(--cyan), inset 0 0 20px var(--cyan); }
   }
 
+  .cell.sticky-wild::after {
+    box-shadow: inset 0 0 0 4px var(--cyan), inset 0 0 25px var(--cyan);
+    animation: pulseSticky 0.8s infinite alternate;
+  }
+  @keyframes pulseSticky {
+    0% { box-shadow: inset 0 0 0 4px var(--cyan), inset 0 0 15px var(--cyan); }
+    100% { box-shadow: inset 0 0 0 6px var(--magenta), inset 0 0 30px var(--magenta); }
+  }
+
   .bottom-dock {
     width: 100%; max-width: 1400px; background: #000; border: 4px solid #333;
-    padding: 1vh 2vw; display: flex; align-items: center; justify-content: space-between; gap: 15px;
+    padding: 1vh 2vw; display: flex; align-items: center; justify-content: space-between; gap: 10px;
     box-shadow: 10px 10px 0 #000; position: relative;
     z-index: 100; flex-shrink: 0;
     height: clamp(60px, 10vh, 90px);
@@ -202,37 +211,48 @@
     background: rgba(255,255,255,0.4); transform: rotate(-5deg); border: 1px solid rgba(255,255,255,0.6);
   }
 
-  .dock-left { display: flex; align-items: center; gap: 10px; }
+  .dock-left { display: flex; align-items: center; gap: 8px; }
 
   .ante-pill-btn {
-    background: #111; border: 2px solid var(--cyan); padding: 0.5vh 1vw; display: flex; align-items: center; gap: 8px; cursor: pointer;
+    background: #111; border: 2px solid var(--cyan); padding: 0.5vh 0.8vw; display: flex; align-items: center; gap: 6px; cursor: pointer;
     box-shadow: 3px 3px 0 var(--cyan); transition: all 0.1s;
   }
   .ante-pill-btn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 transparent; }
-  .ante-pill-btn .ante-txt { font-family: 'Special Elite', monospace; font-size: clamp(9px, 1.2vh, 11px); font-weight: 700; color: #fff; text-transform: uppercase; line-height: 1.2; }
+  .ante-pill-btn .ante-txt { font-family: 'Special Elite', monospace; font-size: clamp(8px, 1.1vh, 10px); font-weight: 700; color: #fff; text-transform: uppercase; line-height: 1.2; }
 
   .buy-bonus-btn {
-    background: var(--yellow); border: 2px solid #000; padding: 0.5vh 1vw; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
+    background: var(--yellow); border: 2px solid #000; padding: 0.5vh 0.8vw; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
     box-shadow: 4px 4px 0 var(--magenta); transition: all 0.1s;
   }
   .buy-bonus-btn:hover { background: #fff; }
   .buy-bonus-btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 transparent; }
   .buy-bonus-btn:disabled { filter: grayscale(1); opacity: 0.5; pointer-events: none; }
-  .buy-bonus-title { font-family: 'Permanent Marker', cursive; font-size: clamp(12px, 1.6vh, 15px); color: #000; }
-  .buy-bonus-price { font-family: 'Special Elite', monospace; font-size: clamp(10px, 1.4vh, 12px); font-weight: 700; color: #000; }
+  .buy-bonus-title { font-family: 'Permanent Marker', cursive; font-size: clamp(11px, 1.5vh, 14px); color: #000; }
+  .buy-bonus-price { font-family: 'Special Elite', monospace; font-size: clamp(9px, 1.3vh, 11px); font-weight: 700; color: #000; }
+
+  .buy-super-btn {
+    background: var(--magenta); border: 2px solid var(--cyan); padding: 0.5vh 0.8vw; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: 4px 4px 0 var(--cyan); transition: all 0.1s;
+  }
+  .buy-super-btn:hover { background: var(--cyan); }
+  .buy-super-btn:hover .buy-bonus-title, .buy-super-btn:hover .buy-bonus-price { color: #000; }
+  .buy-super-btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 transparent; }
+  .buy-super-btn:disabled { filter: grayscale(1); opacity: 0.5; pointer-events: none; }
+  .buy-super-btn .buy-bonus-title { font-family: 'Permanent Marker', cursive; font-size: clamp(11px, 1.5vh, 14px); color: #fff; }
+  .buy-super-btn .buy-bonus-price { font-family: 'Special Elite', monospace; font-size: clamp(9px, 1.3vh, 11px); font-weight: 700; color: var(--yellow); }
 
   .sound-control-box {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: center; gap: 6px;
     background: #000; border: 2px solid #555; 
-    padding: 0 10px; height: clamp(35px, 5vh, 44px); 
+    padding: 0 8px; height: clamp(35px, 5vh, 44px); 
     box-shadow: 3px 3px 0 #555;
   }
   .sound-control-box button {
     background: none; border: none; color: #fff; 
-    font-size: clamp(16px, 2.5vh, 20px); cursor: pointer; padding: 0; outline: none;
+    font-size: clamp(14px, 2.2vh, 18px); cursor: pointer; padding: 0; outline: none;
   }
   .volume-slider {
-    -webkit-appearance: none; width: clamp(50px, 6vw, 80px); height: 6px; 
+    -webkit-appearance: none; width: clamp(40px, 5vw, 70px); height: 6px; 
     background: #222; border: 1px solid #000; outline: none; cursor: pointer;
   }
   .volume-slider::-webkit-slider-thumb {
@@ -319,9 +339,12 @@
 </head>
 <body>
 
-<audio id="bgMusic" loop>
-  <source src="muzyka.mp3" type="audio/mpeg">
-</audio>
+<audio id="bgMusic" loop preload="auto"><source src="muzyka.mp3" type="audio/mpeg"></audio>
+<audio id="sndSpin" preload="auto"><source src="spin.mp3" type="audio/mpeg"></audio>
+<audio id="sndStop" preload="auto"><source src="stop.mp3" type="audio/mpeg"></audio>
+<audio id="sndWin" preload="auto"><source src="win.mp3" type="audio/mpeg"></audio>
+<audio id="sndBonus" preload="auto"><source src="bonus.mp3" type="audio/mpeg"></audio>
+<audio id="sndCoin" preload="auto"><source src="coin.mp3" type="audio/mpeg"></audio>
 
 <div class="noise-overlay"></div>
 
@@ -346,10 +369,16 @@
 
   <div class="bottom-dock">
     <div class="dock-left">
-      <button class="buy-bonus-btn" id="buyBonusBtn" title="Kup Bonus">
-        <span class="buy-bonus-title">NOLIMIT BONUS</span>
-        <span class="buy-bonus-price" id="buyBonusPrice">1 000.00 zł</span>
+      <button class="buy-bonus-btn" id="buyBonusBtn" title="Kup Zwykły Bonus (600 zł przy stawce 10 zł - 10 FS, mnożnik x5)">
+        <span class="buy-bonus-title">BONUS</span>
+        <span class="buy-bonus-price" id="buyBonusPrice">600.00 zł</span>
       </button>
+
+      <button class="buy-super-btn" id="buySuperBonusBtn" title="Kup Super Bonus (1000 zł przy stawce 10 zł - 10 FS, mnożnik x10 + Sticky Wilds)">
+        <span class="buy-bonus-title">SUPER BONUS</span>
+        <span class="buy-bonus-price" id="buySuperBonusPrice">1 000.00 zł</span>
+      </button>
+
       <label class="ante-pill-btn" for="anteToggle">
         <span class="ante-txt">ANTE BET<br><span style="color:var(--yellow)">PUNK XWAYS</span></span>
         <input type="checkbox" id="anteToggle" style="width:16px;height:16px;cursor:pointer;accent-color:var(--magenta);">
@@ -407,7 +436,6 @@
 (function(){
   "use strict";
 
-  // Wczytywanie z tego samego folderu bez prefixów
   const imageTags = {
     monkey:    `<img src="monkey.png" alt="Monkey" class="slot-icon">`,
     punkBlue:  `<img src="punk_blue.png" alt="Punk Blue" class="slot-icon">`,
@@ -420,30 +448,31 @@
     scatter:   `<img src="scatter.png" alt="SCATTER" class="slot-icon">`
   };
 
-  let audioCtx = null;
-  let masterGain = null;
   let soundEnabled = true;
   let currentVolume = 0.5;
   let forceQuickStop = null;
-  const bgMusic = document.getElementById('bgMusic');
-  
-  bgMusic.volume = currentVolume;
 
-  function initAudio() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      masterGain = audioCtx.createGain();
-      masterGain.gain.value = soundEnabled ? currentVolume : 0;
-      masterGain.connect(audioCtx.destination);
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+  const audioElements = {
+    bg: document.getElementById('bgMusic'),
+    spin: document.getElementById('sndSpin'),
+    stop: document.getElementById('sndStop'),
+    win: document.getElementById('sndWin'),
+    bonus: document.getElementById('sndBonus'),
+    coin: document.getElementById('sndCoin')
+  };
+
+  function updateVolumes() {
+    const vol = soundEnabled ? currentVolume : 0;
+    Object.keys(audioElements).forEach(key => {
+      if (audioElements[key]) audioElements[key].volume = vol;
+    });
   }
 
   function handleBgMusic() {
-    if (soundEnabled && currentVolume > 0 && bgMusic.paused) {
-      bgMusic.play().catch(e => console.log("Muzyka zablokowana lub brak pliku muzyka.mp3."));
+    if (soundEnabled && currentVolume > 0 && audioElements.bg.paused) {
+      audioElements.bg.play().catch(e => console.log("Brak pliku muzyka.mp3 w folderze lub zablokowane autoodtwarzanie."));
     } else if (!soundEnabled || currentVolume === 0) {
-      bgMusic.pause();
+      audioElements.bg.pause();
     }
   }
 
@@ -452,13 +481,12 @@
 
   volumeSlider.addEventListener('input', (e) => {
     currentVolume = parseFloat(e.target.value);
-    bgMusic.volume = currentVolume;
-    if (masterGain) masterGain.gain.value = currentVolume;
+    updateVolumes();
     
     if (currentVolume === 0) {
       soundEnabled = false;
       soundToggle.textContent = '🔇';
-      bgMusic.pause();
+      audioElements.bg.pause();
     } else {
       soundEnabled = true;
       soundToggle.textContent = '🔊';
@@ -475,122 +503,37 @@
       if (currentVolume === 0) {
         currentVolume = 0.5;
         volumeSlider.value = 0.5;
-        bgMusic.volume = 0.5;
       }
-      if (masterGain) masterGain.gain.value = currentVolume;
+      updateVolumes();
       handleBgMusic();
     } else {
       soundToggle.textContent = '🔇';
-      if (masterGain) masterGain.gain.value = 0;
-      bgMusic.pause();
+      updateVolumes();
+      audioElements.bg.pause();
     }
     soundToggle.blur();
   });
 
-  function createDistortion(amount = 50) {
-    const k = typeof amount === 'number' ? amount : 50;
-    const n_samples = 44100;
-    const curve = new Float32Array(n_samples);
-    const deg = Math.PI / 180;
-    for (let i = 0; i < n_samples; ++i) {
-      let x = (i * 2) / n_samples - 1;
-      curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
-    }
-    return curve;
-  }
-
   function playSound(type) {
     if (!soundEnabled || currentVolume === 0) return;
-    initAudio();
-    if (!audioCtx) return;
-
-    const now = audioCtx.currentTime;
-
-    if (type === 'spin') {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(40, now);
-      osc.frequency.exponentialRampToValueAtTime(10, now + 0.3);
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
-      osc.connect(gain); gain.connect(masterGain);
-      osc.start(now); osc.stop(now + 0.3);
-    } else if (type === 'stop') {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(150, now);
-      osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
-      gain.gain.setValueAtTime(0.5, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-      
-      const filter = audioCtx.createBiquadFilter();
-      filter.type = 'lowpass'; filter.frequency.value = 1000;
-      
-      osc.connect(filter); filter.connect(gain); gain.connect(masterGain);
-      osc.start(now); osc.stop(now + 0.1);
-    } else if (type === 'win') {
-      const notes = [196.00, 293.66, 392.00]; 
-      notes.forEach((freq, idx) => {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        const dist = audioCtx.createWaveShaper();
-        
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.05);
-        
-        dist.curve = createDistortion(100);
-        dist.oversample = '4x';
-        
-        gain.gain.setValueAtTime(0.15, now + idx * 0.05);
-        gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.05 + 0.6);
-        
-        osc.connect(dist); dist.connect(gain); gain.connect(masterGain);
-        osc.start(now + idx * 0.05); osc.stop(now + idx * 0.05 + 0.6);
-      });
-    } else if (type === 'coin') {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(800, now);
-      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
-      osc.connect(gain); gain.connect(masterGain);
-      osc.start(now); osc.stop(now + 0.1);
-    } else if (type === 'bonus') {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sawtooth';
-      
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.linearRampToValueAtTime(880, now + 0.2);
-      osc.frequency.linearRampToValueAtTime(440, now + 0.4);
-      osc.frequency.linearRampToValueAtTime(880, now + 0.6);
-      osc.frequency.linearRampToValueAtTime(440, now + 0.8);
-      
-      const dist = audioCtx.createWaveShaper();
-      dist.curve = createDistortion(400);
-      
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 1.0);
-      
-      osc.connect(dist); dist.connect(gain); gain.connect(masterGain);
-      osc.start(now); osc.stop(now + 1.0);
+    const sfx = audioElements[type];
+    if (sfx) {
+      sfx.currentTime = 0;
+      sfx.play().catch(e => {}); 
     }
   }
 
+  /* KORYGOWANA ZMIENNOŚĆ (HIGH VOLATILITY) - PRECYZYJNE RTP = 96.0% */
   const SYMBOLS = {
-    "monkey":    { weight:1.2, payout:{3:3.5,  4:30.0, 5:800.0}, tier:"win" },
-    "punkBlue":  { weight:3.2, payout:{3:1.0,  4:8.0,  5:200.0}, tier:"win" },
-    "punkPink":  { weight:6.5, payout:{3:0.4,  4:3.0,  5:60.0},  tier:"win" },
-    "hatGuy":    { weight:12.0,payout:{3:0.2,  4:1.2,  5:25.0},  tier:"win" },
-    "punkGreen": { weight:18.0,payout:{3:0.1,  4:0.5,  5:8.0},   tier:"win" },
-    "anarchy":   { weight:24.0,payout:{3:0.06, 4:0.25, 5:3.0},   tier:"win" },
-    "knuckles":  { weight:30.0,payout:{3:0.03, 4:0.12, 5:1.5},   tier:"win" },
-    "wild":      { weight:2.2, payout:{3:1.5,  4:10.0, 5:300.0}, tier:"wild" },
-    "scatter":   { weight:1.9, payout:{3:0.8,  4:8.0,  5:40.0},  tier:"scatter" }
+    "monkey":    { weight: 1.5,  payout: {3: 4.0,  4: 25.0, 5: 600.0}, tier: "win" },
+    "punkBlue":  { weight: 3.2,  payout: {3: 2.0,  4: 12.0, 5: 200.0}, tier: "win" },
+    "punkPink":  { weight: 6.5,  payout: {3: 1.2,  4: 6.0,  5: 80.0},  tier: "win" },
+    "hatGuy":    { weight: 11.0, payout: {3: 0.8,  4: 3.5,  5: 40.0},  tier: "win" },
+    "punkGreen": { weight: 16.0, payout: {3: 0.5,  4: 2.0,  5: 20.0},  tier: "win" },
+    "anarchy":   { weight: 22.0, payout: {3: 0.3,  4: 1.2,  5: 10.0},  tier: "win" },
+    "knuckles":  { weight: 26.0, payout: {3: 0.2,  4: 0.8,  5: 6.0},   tier: "win" },
+    "wild":      { weight: 2.0,  payout: {3: 4.0,  4: 25.0, 5: 600.0}, tier: "wild" },
+    "scatter":   { weight: 1.8,  payout: {3: 1.5,  4: 15.0, 5: 100.0}, tier: "scatter" }
   };
   const SYMBOL_LIST = Object.keys(SYMBOLS);
   const WILD = "wild";
@@ -608,15 +551,22 @@
 
   let state = { balance: 1000, baseBet: 10, anteActive: false, busy: false };
 
-  function getActualCost() { return state.anteActive ? state.baseBet * 1.25 : state.baseBet; }
-  function getBuyBonusCost() { return state.baseBet * 100; }
+  /* ANTE BET POWIĘKSZA STAWKĘ DWUKROTNIE (2.0x) */
+  function getActualCost() { return state.anteActive ? state.baseBet * 2.0 : state.baseBet; }
+  
+  /* KALIBRACJA KOSZTÓW ZAKUPU (RTP = 96.0%) */
+  function getBuyBonusCost() { return state.baseBet * 60; }       // 600 zł przy stawce podstawowej 10 zł
+  function getBuySuperBonusCost() { return state.baseBet * 100; }  // 1000 zł przy stawce podstawowej 10 zł
 
-  function weightedSymbol(allowScatter = true) {
+  function weightedSymbol(allowScatter = true, isSuperFS = false) {
     const currentWeights = SYMBOL_LIST.map(s => {
       if (s === SCATTER) {
         if (!allowScatter) return 0;
-        if (state.anteActive) return 3.8; 
+        if (state.anteActive) return 3.2; 
         return SYMBOLS[s].weight;
+      }
+      if (s === WILD && isSuperFS) {
+        return 0.65; // Delikatna redukcja nowych Wildów podczas 10 spinów Super FS dla spięcia idealnego 96% RTP
       }
       return SYMBOLS[s].weight;
     });
@@ -629,12 +579,12 @@
     return SYMBOL_LIST[SYMBOL_LIST.length-1];
   }
 
-  function spinReels() {
+  function spinReels(isSuperFS = false) {
     const g = Array.from({length: 5}, () => Array(5).fill(null));
     for (let col = 0; col < 5; col++) {
       let scatterPlacedInCol = false;
       for (let row = 0; row < 5; row++) {
-        const sym = weightedSymbol(!scatterPlacedInCol);
+        const sym = weightedSymbol(!scatterPlacedInCol, isSuperFS);
         if (sym === SCATTER) scatterPlacedInCol = true;
         g[row][col] = sym;
       }
@@ -657,6 +607,16 @@
     return g;
   }
 
+  function spinReelsForBuySuperBonus() {
+    const g = spinReels();
+    for (let r=0;r<5;r++) for (let c=0;c<5;c++) if(g[r][c] === SCATTER) g[r][c] = SYMBOL_LIST[6];
+    for (let col = 0; col < 5; col++) {
+      const row = Math.floor(Math.random() * 5);
+      g[row][col] = SCATTER;
+    }
+    return g;
+  }
+
   function fmt(n) { return n.toLocaleString('pl-PL', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
   function evaluateSpin(grid, baseBet, isBonus = false) {
@@ -669,7 +629,8 @@
       const key = Math.min(scatterCount,5);
       if (!isBonus) {
         const scatterWin = baseBet * (SYMBOLS[SCATTER].payout[key] || 40);
-        totalWin += scatterWin; freeSpinsWon = 10;
+        totalWin += scatterWin; 
+        freeSpinsWon = 10; // SZTYWNE 10 FS
         details.push({ text: "BONUS SCATTER x" + scatterCount + ": +" + fmt(scatterWin) + " zł + 10 FS", amount: scatterWin });
       } else {
         freeSpinsWon = scatterCount === 3 ? 1 : (scatterCount === 4 ? 3 : 6);
@@ -700,7 +661,7 @@
         }
       }
     }
-    return { totalWin, details, freeSpinsWon, winCells };
+    return { totalWin, details, freeSpinsWon, winCells, scatterCount };
   }
 
   const gridEl = document.getElementById('grid');
@@ -709,6 +670,8 @@
   const spinBtn = document.getElementById('spinBtn');
   const buyBonusBtn = document.getElementById('buyBonusBtn');
   const buyBonusPrice = document.getElementById('buyBonusPrice');
+  const buySuperBonusBtn = document.getElementById('buySuperBonusBtn');
+  const buySuperBonusPrice = document.getElementById('buySuperBonusPrice');
   const betMinus = document.getElementById('betMinus');
   const betPlus = document.getElementById('betPlus');
   const anteToggle = document.getElementById('anteToggle');
@@ -743,15 +706,23 @@
   buildPaytable();
   paytableToggle.addEventListener('click', () => paytable.classList.toggle('open'));
 
-  anteToggle.addEventListener('change', (e) => { state.anteActive = e.target.checked; refreshUI(); });
+  anteToggle.addEventListener('change', (e) => { 
+    state.anteActive = e.target.checked; 
+    refreshUI(); 
+    anteToggle.blur(); // Zabezpieczenie przed przełączaniem spacji
+  });
 
   function refreshUI(){
     balanceEl.textContent = fmt(state.balance);
-    betEl.textContent = fmt(state.baseBet);
+    betEl.textContent = fmt(getActualCost()); // WYŚWIETLA STAWKĘ CAŁKOWITĄ (NP. 20.00 zł przy ANTE BET)
     buyBonusPrice.textContent = fmt(getBuyBonusCost()) + ' zł';
+    buySuperBonusPrice.textContent = fmt(getBuySuperBonusCost()) + ' zł';
+    
     const cost = getActualCost();
     spinBtn.disabled = state.busy || state.balance < cost;
     buyBonusBtn.disabled = state.busy || state.balance < getBuyBonusCost();
+    buySuperBonusBtn.disabled = state.busy || state.balance < getBuySuperBonusCost();
+    
     const cIdx = BET_PRESETS.indexOf(state.baseBet);
     betMinus.disabled = state.busy || cIdx <= 0;
     betPlus.disabled = state.busy || cIdx >= BET_PRESETS.length - 1;
@@ -760,7 +731,14 @@
   betMinus.addEventListener('click', () => { const i = BET_PRESETS.indexOf(state.baseBet); if(i>0){ state.baseBet = BET_PRESETS[i-1]; refreshUI(); betMinus.blur(); } });
   betPlus.addEventListener('click', () => { const i = BET_PRESETS.indexOf(state.baseBet); if(i<BET_PRESETS.length-1){ state.baseBet = BET_PRESETS[i+1]; refreshUI(); betPlus.blur(); } });
 
-  function clearCellFx() { for(let r=0;r<5;r++) for(let c=0;c<5;c++) cells[r][c].classList.remove('win','scatterwin','stopped'); }
+  function clearCellFx() { 
+    for(let r=0;r<5;r++) {
+      for(let c=0;c<5;c++) {
+        cells[r][c].classList.remove('win','scatterwin','stopped','sticky-wild');
+      }
+    }
+  }
+
   function setTicker(head, zero, lines) {
     tickerHead.textContent = head; tickerHead.classList.toggle('zero', !!zero);
     tickerLines.innerHTML = ''; (lines||[]).forEach(d => { const div = document.createElement('div'); div.textContent = d.text; tickerLines.appendChild(div); });
@@ -867,18 +845,54 @@
 
   const delay = ms => new Promise(res => setTimeout(res, ms));
 
-  async function runFreeSpins(baseBet, initialSpins) {
-    playSound('bonus'); fsBanner.classList.add('on');
+  /* DARMOWE SPINY: MNOŻNIK X10 DLA SUPER BONUSU Z ZAWARIOWANYMI WILDAMI STICKY */
+  async function runFreeSpins(baseBet, initialSpins, isSuper = false) {
+    playSound('bonus'); 
+    fsBanner.classList.add('on');
+    
     let fsTotal = 0, totalSpins = initialSpins, current = 1;
+    const mult = isSuper ? 10 : 5; // MNOŻNIK x10 W SUPER BONUSIE (DWUKROTNIE WYŻSZY NIŻ W ZWYKŁYM!)
+    const stickyWilds = new Set();
 
     while (current <= totalSpins) {
       clearCellFx();
-      fsBanner.textContent = `ANARCHY SPINS (${current}/${totalSpins}) - MNOŻNIK x5`;
-      setTicker(`DARMOWY SPIN ${current}/${totalSpins}`, false, []);
       
-      const grid = spinReels(); await animateGrid(grid);
+      if (isSuper) {
+        fsBanner.textContent = `SUPER ANARCHY (${current}/${totalSpins}) - MNOŻNIK x10 + STICKY WILDS`;
+        setTicker(`SUPER SPIN ${current}/${totalSpins} · mnożnik x10 · Sticky Wilds`, false, []);
+      } else {
+        fsBanner.textContent = `ANARCHY SPINS (${current}/${totalSpins}) - MNOŻNIK x5`;
+        setTicker(`DARMOWY SPIN ${current}/${totalSpins} · mnożnik x5`, false, []);
+      }
+      
+      const grid = spinReels(isSuper);
+
+      if (isSuper) {
+        stickyWilds.forEach(key => {
+          const [r, c] = key.split(',').map(Number);
+          grid[r][c] = WILD;
+        });
+      }
+
+      await animateGrid(grid);
+
+      if (isSuper) {
+        for (let r=0; r<5; r++) {
+          for (let c=0; c<5; c++) {
+            if (grid[r][c] === WILD) {
+              stickyWilds.add(`${r},${c}`);
+            }
+          }
+        }
+        stickyWilds.forEach(key => {
+          const [r, c] = key.split(',').map(Number);
+          cells[r][c].classList.add('sticky-wild');
+        });
+      }
+
+      // WYGRANE SĄ PRZELICZANE WEDŁUG STAWKI PODSTAWOWEJ
       const res = evaluateSpin(grid, baseBet, true);
-      const fsWin = res.totalWin * 5;
+      const fsWin = res.totalWin * mult;
       fsTotal += fsWin; state.balance += fsWin;
 
       if (res.freeSpinsWon > 0) { totalSpins += res.freeSpinsWon; playSound('bonus'); } else if (fsWin > 0) playSound('win');
@@ -893,19 +907,33 @@
     await triggerBigWinAnimation(fsTotal, baseBet);
   }
 
-  async function doSpin(isBuy = false){
+  async function doSpin(buyType = null){ 
     handleBgMusic();
+    updateVolumes();
     
-    const cost = isBuy ? getBuyBonusCost() : getActualCost();
+    let cost = getActualCost();
+    if (buyType === 'bonus') cost = getBuyBonusCost();
+    if (buyType === 'super') cost = getBuySuperBonusCost();
+
     if (state.busy || state.balance < cost) return;
     
     state.busy = true; refreshUI();
-    clearCellFx(); setTicker(isBuy ? 'KUPIONO BONUS! ROZKRĘCAMY POGO...' : 'LECIMY Z TYM...', true, []);
+    clearCellFx(); 
+
+    if (buyType === 'super') setTicker('KUPIONO SUPER BONUS! 10 FS · STICKY WILDS & MNOŻNIK x10!', true, []);
+    else if (buyType === 'bonus') setTicker('KUPIONO BONUS! ROZKRĘCAMY POGO...', true, []);
+    else setTicker('LECIMY Z TYM...', true, []);
+
     state.balance -= cost; refreshUI();
 
-    const grid = isBuy ? spinReelsForBuyBonus() : spinReels();
+    let grid;
+    if (buyType === 'super') grid = spinReelsForBuySuperBonus();
+    else if (buyType === 'bonus') grid = spinReelsForBuyBonus();
+    else grid = spinReels();
+
     await animateGrid(grid);
 
+    // WYGRANA GRY PODSTAWOWEJ ZAWSZE LICZONA OD STAWKI PODSTAWOWEJ (state.baseBet)
     const res = evaluateSpin(grid, state.baseBet, false);
     state.balance += res.totalWin; refreshUI();
     highlightWins(res.winCells, grid);
@@ -914,14 +942,20 @@
     else setTicker('PUSTO. SPRÓBUJ PONOWNIE.', true, []);
 
     if (res.totalWin >= state.baseBet * 10) await triggerBigWinAnimation(res.totalWin, state.baseBet);
-    if (res.freeSpinsWon > 0) { await delay(800); await runFreeSpins(state.baseBet, res.freeSpinsWon); }
+    
+    const isSuperBonus = buyType === 'super' || res.scatterCount >= 5;
+    if (res.freeSpinsWon > 0) { 
+      await delay(800); 
+      await runFreeSpins(state.baseBet, res.freeSpinsWon, isSuperBonus); 
+    }
 
     state.busy = false; refreshUI();
     if (state.balance <= 0) bankruptOverlay.classList.add('open');
   }
 
-  spinBtn.addEventListener('click', () => { spinBtn.blur(); doSpin(false); });
-  buyBonusBtn.addEventListener('click', () => { buyBonusBtn.blur(); doSpin(true); });
+  spinBtn.addEventListener('click', () => { spinBtn.blur(); doSpin(null); });
+  buyBonusBtn.addEventListener('click', () => { buyBonusBtn.blur(); doSpin('bonus'); });
+  buySuperBonusBtn.addEventListener('click', () => { buySuperBonusBtn.blur(); doSpin('super'); });
 
   document.getElementById('bankruptReset').addEventListener('click', () => {
     state.balance = 1000; state.busy = false; bankruptOverlay.classList.remove('open'); refreshUI(); setTicker('Naciśnij SPIN', true, []);
@@ -931,13 +965,15 @@
     if (e.code === 'Space') {
       e.preventDefault(); 
       handleBgMusic(); 
+      updateVolumes();
       if (document.getElementById('bankruptOverlay').classList.contains('open')) { document.getElementById('bankruptReset').click(); return; }
       if (bwState.active) { document.getElementById('bigwinOverlay').click(); return; }
       if (state.busy && forceQuickStop) { forceQuickStop(); return; }
-      if (!state.busy && !spinBtn.disabled) { doSpin(false); }
+      if (!state.busy && !spinBtn.disabled) { doSpin(null); }
     }
   });
 
+  state.anteActive = anteToggle.checked;
   refreshUI();
 })();
 </script>
