@@ -342,8 +342,6 @@
   }
   .volume-slider {
     -webkit-appearance: none; width: clamp(40px, 5vw, 70px); height: 6px; 
-    appearance: none;
-    width: clamp(40px, 5vw, 70px); height: 6px; 
     background: #222; border: 1px solid #000; outline: none; cursor: pointer;
   }
   .volume-slider::-webkit-slider-thumb {
@@ -540,6 +538,8 @@
   const EFFECTS_VOLUME_MULT = 1.5;
   const MUSIC_VOLUME_MULT = 0.35;
   let skipSpinRequested = false;
+  let bonusMusicActive = false;
+  let activeBonusAudio = null;
 
   const bgAudio = document.getElementById('bgMusic');
   const bonusAudio = document.getElementById('bonusMusic');
@@ -723,31 +723,39 @@
   }
 
   function updateVolumes() {
-    if (bgAudio) bgAudio.volume = soundEnabled ? currentVolume * MUSIC_VOLUME_MULT : 0;
-    if (bonusAudio) bonusAudio.volume = soundEnabled ? currentVolume * MUSIC_VOLUME_MULT : 0;
-    if (superAudio) superAudio.volume = soundEnabled ? currentVolume * MUSIC_VOLUME_MULT : 0;
+    const targetVol = soundEnabled ? currentVolume * MUSIC_VOLUME_MULT : 0;
+    if (bgAudio) bgAudio.volume = targetVol;
+    if (bonusAudio) bonusAudio.volume = targetVol;
+    if (superAudio) superAudio.volume = targetVol;
   }
 
   function playBonusMusic(isSuper) {
+    bonusMusicActive = true;
+    activeBonusAudio = isSuper ? superAudio : bonusAudio;
     try {
-      // stop regular bg
       if (bgAudio && !bgAudio.paused) bgAudio.pause();
       if (isSuper) {
         if (bonusAudio && !bonusAudio.paused) bonusAudio.pause();
-        if (superAudio) superAudio.currentTime = 0;
-        superAudio.play().catch(()=>{});
+        if (superAudio && soundEnabled && currentVolume > 0) {
+          superAudio.currentTime = 0;
+          superAudio.play().catch(()=>{});
+        }
       } else {
         if (superAudio && !superAudio.paused) superAudio.pause();
-        if (bonusAudio) { bonusAudio.currentTime = 0; bonusAudio.play().catch(()=>{}); }
+        if (bonusAudio && soundEnabled && currentVolume > 0) {
+          bonusAudio.currentTime = 0;
+          bonusAudio.play().catch(()=>{});
+        }
       }
     } catch(e) { console.warn('playBonusMusic error', e); }
   }
 
   function stopBonusMusic() {
+    bonusMusicActive = false;
+    activeBonusAudio = null;
     try {
       if (bonusAudio && !bonusAudio.paused) bonusAudio.pause();
       if (superAudio && !superAudio.paused) superAudio.pause();
-      // resume background music if enabled
       if (soundEnabled && currentVolume > 0 && bgAudio) {
         bgAudio.currentTime = 0;
         bgAudio.play().catch(()=>{});
@@ -756,6 +764,14 @@
   }
 
   function handleBgMusic() {
+    if (bonusMusicActive) {
+      if (!soundEnabled || currentVolume === 0) {
+        if (bgAudio && !bgAudio.paused) bgAudio.pause();
+        if (activeBonusAudio && !activeBonusAudio.paused) activeBonusAudio.pause();
+      }
+      return;
+    }
+
     if (soundEnabled && currentVolume > 0 && bgAudio.paused) {
       bgAudio.play().catch(e => console.log("Muzyka zablokowana przez przeglądarkę."));
     } else if (!soundEnabled || currentVolume === 0) {
@@ -772,11 +788,15 @@
     if (currentVolume === 0) {
       soundEnabled = false;
       soundToggle.textContent = '🔇';
-      bgAudio.pause();
+      if (bgAudio) bgAudio.pause();
+      if (bonusAudio) bonusAudio.pause();
+      if (superAudio) superAudio.pause();
     } else {
       soundEnabled = true;
       soundToggle.textContent = '🔊';
-      handleBgMusic();
+      if (!bonusMusicActive) {
+        handleBgMusic();
+      }
     }
   });
 
@@ -785,10 +805,16 @@
     if (soundEnabled) {
       soundToggle.textContent = '🔊';
       if (currentVolume === 0) { currentVolume = 0.5; volumeSlider.value = 0.5; }
-      updateVolumes(); handleBgMusic();
+      updateVolumes();
+      if (!bonusMusicActive) {
+        handleBgMusic();
+      }
     } else {
       soundToggle.textContent = '🔇';
-      updateVolumes(); bgAudio.pause();
+      updateVolumes();
+      if (bgAudio) bgAudio.pause();
+      if (bonusAudio) bonusAudio.pause();
+      if (superAudio) superAudio.pause();
     }
   });
 
