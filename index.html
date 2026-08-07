@@ -194,13 +194,14 @@
     z-index: 2;
   }
   
-  .cell.spinning .slot-icon { animation: reelBlur .06s linear infinite; }
-  @keyframes reelBlur { 0%{transform:translateY(-20px) skewY(10deg); filter: blur(0.6px); opacity:.5;} 50%{transform:translateY(0px) skewY(0deg); filter: blur(0.2px); opacity:.6;} 100%{transform:translateY(20px) skewY(-10deg); filter: blur(0.6px); opacity:.5;} }
+  /* Spin visuals are driven by a real vertical reel-track in JS.
+     No skew/stretch and no background ghosting of the previous symbol. */
+  .cell.spinning .slot-icon { animation: none !important; transform: none; filter: none; }
   
-  /* ZRÓWNOWAŻONE, WOLNIEJSZE TEMPO KRĘCENIA PODCZAS NAPIĘCIA */
+  /* NATURALNE ANTICIPATION — bez rozciągania/skew i bez trzęsienia ikon */
   .cell.reel-anticipation {
     background: rgba(24, 12, 18, 0.96) !important;
-    box-shadow: inset 0 0 0 2px rgba(200, 140, 170, 0.18), inset 0 0 10px rgba(140, 90, 110, 0.12);
+    box-shadow: inset 0 0 0 2px rgba(200, 140, 170, 0.16), inset 0 0 10px rgba(140, 90, 110, 0.10);
   }
   .cell.reel-anticipation::after {
     content: '';
@@ -208,27 +209,77 @@
     inset: 0;
     z-index: 10;
     pointer-events: none;
-    animation: pulseAnticipation 1.0s infinite alternate;
+    animation: pulseAnticipation 1.15s ease-in-out infinite alternate;
   }
   .cell.reel-anticipation .slot-icon {
-    animation: reelAnticipationSpin 0.28s ease-in-out infinite !important;
+    /* W anticipation ruch realizuje JS jako płynny przewijany pasek. */
+    animation: none !important;
+    transform: none !important;
     transform-origin: center center;
-    filter: blur(0.35px);
+    filter: none;
+    opacity: 1;
   }
-  @keyframes reelAnticipationSpin {
-    0% { transform: translateY(-22px) skewY(6deg); opacity: 0.48; filter: blur(0.5px); }
-    35% { transform: translateY(-8px) skewY(3deg); opacity: 0.58; filter: blur(0.36px); }
-    50% { transform: translateY(0px) skewY(0deg); opacity: 0.68; filter: blur(0.24px); }
-    65% { transform: translateY(8px) skewY(-3deg); opacity: 0.58; filter: blur(0.36px); }
-    100% { transform: translateY(22px) skewY(-6deg); opacity: 0.48; filter: blur(0.5px); }
+  /* One physical vertical strip per cell. New symbol lives above the old one.
+     The whole strip moves down, so the old symbol exits through the bottom
+     and the new one enters from the top without ever occupying the same slot. */
+  .reel-window-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow: hidden;
+    pointer-events: none;
+    contain: layout paint;
   }
-  @keyframes pulseAnticipation {
-    0% { box-shadow: inset 0 0 0 2px rgba(190, 120, 150, 0.24), inset 0 0 8px rgba(120, 80, 100, 0.14); }
-    100% { box-shadow: inset 0 0 0 3px rgba(170, 100, 130, 0.2), inset 0 0 12px rgba(100, 70, 90, 0.1); }
+  .reel-track {
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    height: 200%;
+    transform: translate3d(0,-50%,0);
+    will-change: transform, filter;
+    backface-visibility: hidden;
   }
 
-  .cell.stopped { animation: settle .3s cubic-bezier(.2,1.5,.4,1); }
-  @keyframes settle { 0%{transform:translateY(-15px);} 50%{transform:translateY(5px);} 100%{transform:translateY(0);} }
+  /* Lekki motion blur tylko podczas fizycznego ruchu reel-tracka.
+     Wartość ustawia JS na podstawie prędkości: szybciej = trochę mocniej,
+     wyhamowanie = coraz słabiej. Po zatrzymaniu track znika, więc wynik
+     pozostaje idealnie ostry. */
+  .reel-window-layer.reel-motion-blur .reel-track {
+    filter: blur(var(--reel-motion-blur, 0.55px));
+  }
+  .reel-symbol-frame {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .reel-symbol-frame.new-symbol { top: 0; }
+  .reel-symbol-frame.old-symbol { top: 50%; }
+  .reel-symbol-frame .slot-icon {
+    position: static !important;
+    width: 95%;
+    height: 95%;
+    object-fit: contain;
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+    backface-visibility: hidden;
+  }
+  @keyframes pulseAnticipation {
+    0% { box-shadow: inset 0 0 0 2px rgba(190, 120, 150, 0.17), inset 0 0 7px rgba(120, 80, 100, 0.08); }
+    100% { box-shadow: inset 0 0 0 2px rgba(190, 120, 150, 0.24), inset 0 0 13px rgba(120, 80, 100, 0.13); }
+  }
+
+  .cell.stopped { animation: settle .22s cubic-bezier(.2,.8,.25,1); }
+  @keyframes settle { 0%{transform:translateY(-3px);} 100%{transform:translateY(0);} }
+  /* Anticipation already performs a full eased landing on the reel track.
+     Do not add a second bounce after the final symbol reaches its slot. */
+  .cell.stopped.anticipation-soft-stop { animation: none !important; transform: none !important; }
   
   .cell.win::after {
     animation: pulseWin 0.6s infinite alternate;
@@ -355,6 +406,11 @@
   .icon-btn { background: #000; border: 2px solid #555; color: #fff; width: clamp(35px, 5vh, 44px); height: clamp(35px, 5vh, 44px); cursor: pointer; font-size: clamp(16px, 2.5vh, 20px); box-shadow: 3px 3px 0 #555; }
   .icon-btn { background: linear-gradient(180deg,#232226,#151517); border: 1px solid rgba(255,255,255,0.03); color: #fff; width: clamp(35px, 5vh, 44px); height: clamp(35px, 5vh, 44px); cursor: pointer; font-size: clamp(16px, 2.5vh, 20px); box-shadow: 0 6px 10px rgba(0,0,0,0.45); border-radius:6px; }
   .icon-btn:active { transform: translateY(2px); box-shadow: 0 4px 8px rgba(0,0,0,0.4); }
+  .icon-btn.turbo-active {
+    color: var(--yellow);
+    border-color: rgba(244,208,63,0.55);
+    box-shadow: 0 0 14px rgba(244,208,63,0.22), 0 6px 10px rgba(0,0,0,0.45);
+  }
 
   .dock-center { display: flex; align-items: center; gap: clamp(10px, 2vw, 30px); }
   .info-block { display: flex; flex-direction: column; text-align: center; }
@@ -380,28 +436,176 @@
   .bigwin-overlay {
     position: fixed; inset: 0; z-index: 2000; background: rgba(0, 0, 0, 0.9);
     display: none; flex-direction: column; align-items: center; justify-content: center; user-select: none;
+    overflow: hidden; contain: layout paint style; will-change: transform;
   }
   .bigwin-overlay.open { display: flex; }
 
   .bigwin-rays {
     position: absolute; width: 150vw; height: 150vw;
-    background: repeating-conic-gradient( rgba(0,0,0,0.6) 0deg 12deg, rgba(180,80,120,0.06) 12deg 24deg );
-    opacity: 0.22; animation: rotateRays 14s linear infinite; mix-blend-mode: soft-light; pointer-events: none;
+    background: repeating-conic-gradient(rgba(0,0,0,0.6) 0deg 12deg, rgba(180,80,120,0.05) 12deg 24deg);
+    opacity: 0.18; animation: rotateRays 16s linear infinite; mix-blend-mode: soft-light; pointer-events: none;
+    will-change: transform, opacity;
   }
   @keyframes rotateRays { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-  .bigwin-card { position: relative; z-index: 2; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .bigwin-overlay::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(255,255,255,0.10), transparent 34%),
+      radial-gradient(circle at 50% 50%, rgba(255,0,85,0.16), transparent 58%);
+    mix-blend-mode: screen;
+  }
+
+  .bigwin-card {
+    position: relative; z-index: 2; text-align: center; display: flex; flex-direction: column; align-items: center;
+    padding: 28px 34px 22px; min-width: min(860px, 86vw); isolation: isolate; overflow: visible;
+    will-change: transform; backface-visibility: hidden; transform: translateZ(0);
+  }
+  .bigwin-card::before {
+    content: ''; position: absolute; inset: -18px -28px -14px; z-index: -1;
+    background: linear-gradient(180deg, rgba(16,16,16,.76), rgba(7,7,7,.92));
+    border: 2px solid rgba(255,255,255,.05); box-shadow: 0 18px 40px rgba(0,0,0,.56), inset 0 1px 0 rgba(255,255,255,.04);
+    transform: rotate(-2deg) skewX(-1.5deg); opacity: .55;
+  }
+
+  .bigwin-paint-wrap {
+    position: absolute; inset: -18vh -18vw; z-index: -1; pointer-events: none; overflow: visible;
+  }
+  .bigwin-paint {
+    position: absolute; display: block; max-width: none; height: auto; opacity: 0;
+    will-change: transform, opacity; backface-visibility: hidden; transform: translate3d(var(--tx, 0), var(--ty, 0), 0) rotate(var(--rot, 0deg)) scale(.68);
+    transition: transform 360ms cubic-bezier(.16,.9,.2,1), opacity 220ms ease;
+  }
+  .paint-a { left: -13vw; top: -10vh; width: clamp(340px, 42vw, 650px); --tx: -28px; --ty: -18px; --rot: -7deg; }
+  .paint-b { right: -14vw; top: -18vh; width: clamp(250px, 26vw, 420px); --tx: 26px; --ty: -18px; --rot: 12deg; }
+  .paint-c { left: -7vw; bottom: -17vh; width: clamp(250px, 24vw, 400px); --tx: -20px; --ty: 16px; --rot: -2deg; }
+  .paint-d { right: -10vw; bottom: -14vh; width: clamp(320px, 34vw, 520px); --tx: 22px; --ty: 14px; --rot: 8deg; }
+
+  .bigwin-graffiti {
+    position: absolute; display: block; pointer-events: none; opacity: 0; height: auto;
+    will-change: transform, opacity; backface-visibility: hidden; transform: translate3d(0,0,0) scale(.76) rotate(var(--grot, 0deg));
+    transition: transform 280ms cubic-bezier(.16,.9,.2,1), opacity 180ms ease;
+  }
+  .graffiti-oi { left: -4vw; top: 2%; width: clamp(110px, 11vw, 180px); --grot: -12deg; }
+  .graffiti-no-future { right: -9vw; top: -2%; width: clamp(200px, 24vw, 360px); --grot: 6deg; }
+  .graffiti-chaos { right: -10vw; bottom: 1%; width: clamp(190px, 22vw, 340px); --grot: 5deg; }
+
   .bigwin-title {
     font-family: 'Permanent Marker', cursive; font-size: clamp(40px, 8vw, 120px); margin: 0; color: var(--yellow);
-    text-transform: uppercase; transform: rotate(-5deg); text-shadow: 4px 4px 0px rgba(0,0,0,0.85), 8px 8px 0px rgba(0,0,0,0.25);
-    animation: punkBounce 0.2s infinite alternate steps(2, end);
+    text-transform: uppercase; transform: rotate(-5deg) translateZ(0); text-shadow: 4px 4px 0px rgba(0,0,0,0.85), 8px 8px 0px rgba(0,0,0,0.25);
+    animation: punkBounce 0.2s infinite alternate steps(2, end); will-change: transform, opacity;
   }
   @keyframes punkBounce { 0% { transform: scale(0.95) rotate(-5deg) translate(-2px, -2px); } 100% { transform: scale(1.05) rotate(-3deg) translate(2px, 2px); } }
+  .bigwin-title.tier-hit { animation: bigWinTierHit 520ms cubic-bezier(.16,.9,.2,1) both !important; }
+  @keyframes bigWinTierHit {
+    0%   { transform: scale(.72) rotate(-9deg); opacity: .15; }
+    42%  { transform: scale(1.22) rotate(2deg); opacity: 1; }
+    72%  { transform: scale(.98) rotate(-6deg); }
+    100% { transform: scale(1.04) rotate(-4deg); opacity: 1; }
+  }
+  @keyframes paintPunch {
+    0%   { opacity: 0; transform: translate3d(var(--tx,0), var(--ty,0), 0) rotate(var(--rot,0deg)) scale(.58); }
+    56%  { opacity: 1; transform: translate3d(var(--tx,0), var(--ty,0), 0) rotate(calc(var(--rot,0deg) + 3deg)) scale(1.1); }
+    100% { opacity: 1; transform: translate3d(var(--tx,0), var(--ty,0), 0) rotate(var(--rot,0deg)) scale(1); }
+  }
+  @keyframes graffitiPunch {
+    0%   { opacity: 0; transform: scale(.45) rotate(calc(var(--grot,0deg) - 8deg)); }
+    58%  { opacity: 1; transform: scale(1.12) rotate(calc(var(--grot,0deg) + 4deg)); }
+    100% { opacity: 1; transform: scale(1) rotate(var(--grot,0deg)); }
+  }
+  @keyframes counterBlast {
+    0%   { transform: rotate(2deg) scale(.9); }
+    50%  { transform: rotate(-1deg) scale(1.08); }
+    100% { transform: rotate(2deg) scale(1); }
+  }
+  @keyframes cardSlam {
+    0%   { transform: scale(.94) rotate(-2deg); }
+    60%  { transform: scale(1.03) rotate(0deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  @keyframes overlayFlash {
+    0%   { opacity: 0; }
+    35%  { opacity: var(--flash-opacity, .24); }
+    100% { opacity: 0; }
+  }
+  @keyframes epicScreenShake {
+    0% { transform: translate3d(0,0,0); }
+    12% { transform: translate3d(-12px, 8px, 0); }
+    24% { transform: translate3d(10px, -9px, 0); }
+    36% { transform: translate3d(-9px, -6px, 0); }
+    48% { transform: translate3d(12px, 8px, 0); }
+    60% { transform: translate3d(-10px, 7px, 0); }
+    72% { transform: translate3d(8px, -7px, 0); }
+    84% { transform: translate3d(-5px, 4px, 0); }
+    100% { transform: translate3d(0,0,0); }
+  }
+
+  .bigwin-overlay.tier-great { --flash-opacity: .12; }
+  .bigwin-overlay.tier-big { --flash-opacity: .18; }
+  .bigwin-overlay.tier-epic { --flash-opacity: .28; }
+
+  .bigwin-overlay.tier-great .bigwin-rays { opacity: .24; }
+  .bigwin-overlay.tier-big .bigwin-rays { opacity: .30; animation-duration: 11s; }
+  .bigwin-overlay.tier-epic .bigwin-rays { opacity: .42; animation-duration: 7s; }
+
+  .bigwin-overlay.tier-great .paint-a,
+  .bigwin-overlay.tier-great .paint-b,
+  .bigwin-overlay.tier-big .paint-a,
+  .bigwin-overlay.tier-big .paint-b,
+  .bigwin-overlay.tier-big .paint-c,
+  .bigwin-overlay.tier-epic .paint-a,
+  .bigwin-overlay.tier-epic .paint-b,
+  .bigwin-overlay.tier-epic .paint-c,
+  .bigwin-overlay.tier-epic .paint-d {
+    opacity: 1;
+    transform: translate3d(var(--tx,0), var(--ty,0), 0) rotate(var(--rot,0deg)) scale(1);
+  }
+  .bigwin-overlay.tier-great .graffiti-oi,
+  .bigwin-overlay.tier-big .graffiti-no-future,
+  .bigwin-overlay.tier-epic .graffiti-chaos {
+    opacity: 1;
+    transform: translate3d(0,0,0) scale(1) rotate(var(--grot,0deg));
+  }
+
+  .bigwin-overlay.tier-great .bigwin-title { color: var(--yellow); }
+  .bigwin-overlay.tier-big .bigwin-title {
+    color: #fff; text-shadow: 0 0 14px rgba(255,0,85,.18), 4px 4px 0 rgba(0,0,0,.82), 9px 9px 0 rgba(0,0,0,.24);
+  }
+  .bigwin-overlay.tier-epic .bigwin-title {
+    color: #fff5a3; text-shadow: 0 0 18px rgba(255,0,85,.22), 0 0 28px rgba(0,229,255,.16), 4px 4px 0 rgba(0,0,0,.82), 11px 11px 0 rgba(0,0,0,.24);
+  }
+
+  .bigwin-overlay.tier-big .bigwin-counter {
+    box-shadow: 0 20px 50px rgba(180,80,120,.22), inset 0 1px 0 rgba(255,255,255,.03);
+    border-color: rgba(255,0,85,.18);
+  }
+  .bigwin-overlay.tier-epic .bigwin-counter {
+    box-shadow: 0 20px 60px rgba(255,0,85,.28), inset 0 1px 0 rgba(255,255,255,.04);
+    border-color: rgba(0,229,255,.18);
+  }
+
+  .bigwin-overlay.burst-hit::before { animation: overlayFlash 520ms ease-out both; }
+  .bigwin-overlay.burst-hit .bigwin-card { animation: cardSlam 380ms cubic-bezier(.16,.9,.2,1) both; }
+  .bigwin-overlay.burst-hit .bigwin-counter { animation: counterBlast 420ms cubic-bezier(.16,.9,.2,1) both; }
+  .bigwin-overlay.tier-great.burst-hit .paint-a,
+  .bigwin-overlay.tier-great.burst-hit .paint-b,
+  .bigwin-overlay.tier-big.burst-hit .paint-a,
+  .bigwin-overlay.tier-big.burst-hit .paint-b,
+  .bigwin-overlay.tier-big.burst-hit .paint-c,
+  .bigwin-overlay.tier-epic.burst-hit .paint-a,
+  .bigwin-overlay.tier-epic.burst-hit .paint-b,
+  .bigwin-overlay.tier-epic.burst-hit .paint-c,
+  .bigwin-overlay.tier-epic.burst-hit .paint-d { animation: paintPunch 520ms cubic-bezier(.16,.9,.2,1) both; }
+  .bigwin-overlay.tier-great.burst-hit .graffiti-oi,
+  .bigwin-overlay.tier-big.burst-hit .graffiti-no-future,
+  .bigwin-overlay.tier-epic.burst-hit .graffiti-chaos { animation: graffitiPunch 420ms cubic-bezier(.16,.9,.2,1) both; }
+  .bigwin-overlay.tier-epic.burst-hit { animation: epicScreenShake 460ms linear both; }
 
   .bigwin-counter {
     font-family: 'Rock Salt', cursive; font-size: clamp(30px, 6vw, 80px); font-weight: bold; color: #fff;
-    background: linear-gradient(180deg,#070707,#0e0e0e); padding: 12px 34px; border-radius:10px; transform: rotate(2deg); margin-top: 20px;
+    background: linear-gradient(180deg,#070707,#0e0e0e); padding: 12px 34px; border-radius:10px; transform: rotate(2deg) translateZ(0); margin-top: 20px;
     border: 2px solid rgba(255,255,255,0.04); box-shadow: 0 20px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.02);
+    will-change: transform;
   }
   .bigwin-hint { font-family: 'Special Elite', monospace; font-size: 16px; color: #aaa; margin-top: 30px; background: #000; padding: 5px; }
 
@@ -426,6 +630,46 @@
   .ob-card p { font-family: 'Special Elite', monospace; color: #000; font-size: clamp(14px, 2vw, 18px); font-weight: bold; background: #fff; padding: 10px; border: 2px solid #000; }
   .ob-card button { font-family: 'Permanent Marker', cursive; background: #000; color: #fff; border: 4px solid #fff; padding: 10px 30px; font-size: 20px; cursor: pointer; box-shadow: 5px 5px 0 var(--cyan); transition: 0.1s; margin-top: 20px;}
   .ob-card button:active { transform: translate(5px,5px); box-shadow: none; }
+
+
+  /* --- PROVABLY FAIR DEMO --- */
+  .fair-panel {
+    display:none; position:fixed; inset:0; z-index:2200; background:rgba(0,0,0,.88);
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .fair-panel.open { display:flex; }
+  .fair-card {
+    width:min(760px,96vw); max-height:88vh; overflow:auto; background:#111; color:#eee;
+    border:2px solid rgba(255,255,255,.08); border-radius:12px; padding:18px;
+    box-shadow:0 24px 70px rgba(0,0,0,.8); font-family:'Special Elite',monospace;
+  }
+  .fair-card h3 { margin:0 0 8px; font-family:'Permanent Marker',cursive; color:var(--yellow); font-size:24px; }
+  .fair-warning { font-size:12px; line-height:1.45; color:#bbb; background:#090909; border-left:3px solid var(--magenta); padding:9px 11px; margin:8px 0 14px; }
+  .fair-grid { display:grid; grid-template-columns:150px 1fr; gap:8px 10px; align-items:center; }
+  .fair-grid label { color:#aaa; font-size:12px; }
+  .fair-mono, .fair-input {
+    width:100%; min-width:0; background:#080808; color:#fff; border:1px solid #333; border-radius:6px;
+    padding:8px 9px; font-family:monospace; font-size:12px; overflow-wrap:anywhere;
+  }
+  .fair-input:focus { outline:1px solid var(--cyan); }
+  .fair-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .fair-actions button {
+    border:1px solid #444; background:#1b1b1b; color:#fff; border-radius:6px; padding:9px 12px;
+    cursor:pointer; font-family:'Special Elite',monospace; font-weight:700;
+  }
+  .fair-actions button:hover { border-color:var(--yellow); }
+  .fair-actions button:disabled { opacity:.4; cursor:not-allowed; }
+  .fair-status { margin-top:12px; padding:10px; background:#080808; border:1px solid #282828; border-radius:6px; font-size:12px; line-height:1.5; }
+  .fair-status.ok { border-color:rgba(80,180,120,.7); }
+  .fair-status.bad { border-color:rgba(220,70,90,.8); }
+  .fair-details { margin-top:12px; font-family:monospace; font-size:11px; color:#bbb; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .fair-history { margin-top:14px; padding-top:12px; border-top:1px solid #2a2a2a; }
+  .fair-history h4 { margin:0 0 8px; color:var(--yellow); font-size:13px; letter-spacing:.5px; }
+  .fair-history-list { display:flex; flex-direction:column; gap:6px; max-height:180px; overflow:auto; }
+  .fair-history-row { background:#080808; border:1px solid #252525; border-radius:6px; padding:7px 9px; font-family:monospace; font-size:10px; line-height:1.35; color:#bbb; }
+  .fair-history-row strong { color:#fff; }
+  @media (max-width:650px){ .fair-grid{grid-template-columns:1fr;} }
+
 </style>
 </head>
 <body>
@@ -452,12 +696,12 @@
     <div class="dock-left">
       <button class="buy-bonus-btn" id="buyBonusBtn" title="Kup Zwykły Bonus (10 FS, losowe mnożniki na wildach do x5)">
         <span class="buy-bonus-title">BONUS</span>
-        <span class="buy-bonus-price" id="buyBonusPrice">250.00</span>
+        <span class="buy-bonus-price" id="buyBonusPrice">300.52</span>
       </button>
 
       <button class="buy-super-btn" id="buySuperBonusBtn" title="Kup Super Bonus (10 FS, Sticky Wilds + losowe mnożniki do x5)">
         <span class="buy-bonus-title">SUPER BONUS</span>
-        <span class="buy-bonus-price" id="buySuperBonusPrice">1 070.00</span>
+        <span class="buy-bonus-price" id="buySuperBonusPrice">2 027.74</span>
       </button>
 
       <label class="ante-pill-btn" for="anteToggle">
@@ -465,7 +709,8 @@
         <input type="checkbox" id="anteToggle" style="width:16px;height:16px;cursor:pointer;accent-color:var(--magenta);">
       </label>
       
-      <button class="icon-btn" id="paytableToggle">ℹ️</button>
+      <button class="icon-btn" id="paytableToggle" title="Tabela wypłat">ℹ️</button>
+      <button class="icon-btn" id="fairToggle" title="Provably Fair / Seedy">🔐</button>
     </div>
     <div class="dock-center">
       <div class="info-block">
@@ -495,6 +740,7 @@
         <button id="soundToggle" title="Wycisz / Odcisz">🔊</button>
         <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05" value="0.5" title="Głośność">
       </div>
+      <button class="icon-btn" id="turboBtn" title="Turbo — szybkie przejście do wyniku">⚡</button>
       <button class="main-spin-btn" id="spinBtn">↻</button>
     </div>
   </div>
@@ -502,9 +748,45 @@
   <div class="paytable" id="paytable"></div>
 </div>
 
+<div class="fair-panel" id="fairPanel">
+  <div class="fair-card">
+    <h3>PROVABLY FAIR · DEMO</h3>
+    <div class="fair-warning">
+      Jednoplikowe demo bez backendu. GAMEPLAY używa wyłącznie Web Crypto: crypto.getRandomValues() do 256-bitowego Server Seeda oraz crypto.subtle HMAC-SHA256 dla każdego losu. Nie ma fallbacku do Math.random() dla wyniku gry. Seed nadal można odczytać w DevTools/localStorage, więc to demonstracja Provably Fair, a nie ochrona produkcyjna.
+    </div>
+    <div class="fair-grid">
+      <label>Server Seed Hash</label><div class="fair-mono" id="fairServerHash">INICJALIZACJA…</div>
+      <label>Client Seed</label><input class="fair-input" id="fairClientSeed" maxlength="128" autocomplete="off" spellcheck="false">
+      <label>Nonce</label><div class="fair-mono" id="fairNonce">0</div>
+      <label>Losy w ostatniej rundzie</label><div class="fair-mono" id="fairDrawCount">0</div>
+      <label>Runda do VERIFY</label><select class="fair-input" id="fairRoundSelect"></select>
+      <label>Ujawniony Server Seed</label><div class="fair-mono" id="fairPreviousSeed">Jeszcze nie ujawniono — użyj ROTATE + REVEAL.</div>
+      <label>Ujawniony Hash</label><div class="fair-mono" id="fairPreviousHash">—</div>
+    </div>
+    <div class="fair-actions">
+      <button id="fairApplyClient">ZASTOSUJ CLIENT SEED</button>
+      <button id="fairRotate">ROTATE + REVEAL</button>
+      <button id="fairVerify">VERIFY FULL ROUND</button>
+      <button id="fairClose">ZAMKNIJ</button>
+    </div>
+    <div class="fair-status" id="fairStatus">Web Crypto inicjalizuje RNG…</div>
+    <div class="fair-details" id="fairDetails"></div>
+    <div class="fair-history"><h4>HISTORIA RUND</h4><div class="fair-history-list" id="fairHistory"></div></div>
+  </div>
+</div>
+
 <div class="bigwin-overlay" id="bigwinOverlay">
   <div class="bigwin-rays"></div>
   <div class="bigwin-card">
+    <div class="bigwin-paint-wrap" aria-hidden="true">
+      <img class="bigwin-paint paint-a" src="bigwin_paint_sweep_1.png" alt="">
+      <img class="bigwin-paint paint-b" src="bigwin_paint_burst.png" alt="">
+      <img class="bigwin-paint paint-c" src="bigwin_paint_vertical.png" alt="">
+      <img class="bigwin-paint paint-d" src="bigwin_paint_sweep_2.png" alt="">
+    </div>
+    <img class="bigwin-graffiti graffiti-oi" src="bigwin_graffiti_oi.png" alt="">
+    <img class="bigwin-graffiti graffiti-no-future" src="bigwin_graffiti_no_future.png" alt="">
+    <img class="bigwin-graffiti graffiti-chaos" src="bigwin_graffiti_chaos.png" alt="">
     <div class="bigwin-title" id="bigwinTitle">BIG WIN!</div>
     <div class="bigwin-counter" id="bigwinCounter">0.00</div>
     <div class="bigwin-hint">KLIKNIJ ABY PRZYSPIESZYĆ</div>
@@ -540,6 +822,46 @@
   const EFFECTS_VOLUME_MULT = 1.5;
   const MUSIC_VOLUME_MULT = 0.35;
   let skipSpinRequested = false;
+  let turboActive = false;
+
+  // SPACE HOLD / AUTOPLAY SPEED LIMIT
+  // Krótkie naciśnięcie spacji zachowuje się normalnie (lub skipuje bieżący spin).
+  // Po krótkim przytrzymaniu uruchamiamy TYMCZASOWE turbo tylko na czas trzymania
+  // klawisza. Nie zmienia ono stanu ani wyglądu przycisku ⚡ Turbo w UI.
+  const SPACE_HOLD_TURBO_DELAY_MS = 350;
+  const SPACE_HOLD_RESULT_DWELL_MS = 850;
+  const TURBO_HOLD_RESULT_DWELL_MS = 450;
+  const SPACE_HOLD_POLL_MS = 35;
+  let spaceHeld = false;
+  let spaceHoldLoopRunning = false;
+  let spaceHoldTurboActive = false;
+  let spaceHoldTurboTimer = null;
+
+  function isTurboEffective() {
+    return turboActive || spaceHoldTurboActive;
+  }
+
+  function armSpaceHoldTurbo() {
+    if (spaceHoldTurboTimer) clearTimeout(spaceHoldTurboTimer);
+    spaceHoldTurboActive = false;
+    spaceHoldTurboTimer = setTimeout(() => {
+      spaceHoldTurboTimer = null;
+      if (!spaceHeld) return;
+      spaceHoldTurboActive = true;
+      // Jeśli właśnie kręcą się bębny, po wejściu w hold-turbo od razu
+      // przyspieszamy aktualną animację do wyniku.
+      if (state.busy) skipSpinRequested = true;
+    }, SPACE_HOLD_TURBO_DELAY_MS);
+  }
+
+  function releaseSpaceHoldTurbo() {
+    if (spaceHoldTurboTimer) {
+      clearTimeout(spaceHoldTurboTimer);
+      spaceHoldTurboTimer = null;
+    }
+    spaceHoldTurboActive = false;
+  }
+
   let bonusMusicActive = false;
   let activeBonusAudio = null;
 
@@ -724,6 +1046,34 @@
     }
   }
 
+  function playBigWinTierSound(tier) {
+    if (!soundEnabled || currentVolume === 0) return;
+
+    if (tier === 'great') {
+      playTone(392.00, 0.18, 'triangle', 0.18, 0.004, 0.14, 0, 'bandpass', 1100);
+      playTone(523.25, 0.22, 'square', 0.12, 0.004, 0.18, 0.05, 'highpass', 1700);
+      playNoise(0.18, 0.045, 0.01);
+      return;
+    }
+
+    if (tier === 'big') {
+      [220.00, 293.66, 392.00].forEach((f, idx) => {
+        playTone(f, 0.28, 'sawtooth', 0.18, 0.004, 0.22, idx * 0.045, 'lowpass', 1500 - idx * 130);
+      });
+      playTone(659.25, 0.16, 'square', 0.10, 0.003, 0.12, 0.12, 'highpass', 2000);
+      playNoise(0.24, 0.06, 0.01);
+      return;
+    }
+
+    if (tier === 'epic') {
+      [164.81, 220.00, 293.66, 440.00].forEach((f, idx) => {
+        playTone(f, 0.34, idx < 2 ? 'sawtooth' : 'square', 0.22, 0.004, 0.28, idx * 0.05, 'lowpass', 1300 + idx * 110);
+      });
+      playTone(110.00, 0.44, 'triangle', 0.16, 0.003, 0.34, 0, 'lowpass', 700);
+      playNoise(0.34, 0.10, 0.01);
+    }
+  }
+
   function updateVolumes() {
     const targetVol = soundEnabled ? currentVolume * MUSIC_VOLUME_MULT : 0;
     if (bgAudio) bgAudio.volume = targetVol;
@@ -820,6 +1170,227 @@
     }
   });
 
+
+  // --- PROVABLY FAIR / WEB CRYPTO RNG -----------------------------------------
+  // GAMEPLAY path only: 256-bit server seed from crypto.getRandomValues(),
+  // then HMAC-SHA256(serverSeed, clientSeed:nonce:counter) via crypto.subtle.
+  // There is intentionally NO Math.random() fallback for gameplay randomness.
+  const textEncoder = new TextEncoder();
+
+  function bytesToHex(bytes) {
+    let out = '';
+    for (const b of bytes) out += b.toString(16).padStart(2, '0');
+    return out;
+  }
+
+  function hexToBytes(hex) {
+    const s = String(hex || '').trim();
+    if (!/^[0-9a-f]+$/i.test(s) || (s.length % 2)) throw new Error('Nieprawidłowy seed HEX.');
+    const out = new Uint8Array(s.length / 2);
+    for (let i=0;i<out.length;i++) out[i] = parseInt(s.slice(i*2, i*2+2), 16);
+    return out;
+  }
+
+  function requireWebCrypto() {
+    if (!window.crypto || !crypto.getRandomValues || !crypto.subtle) {
+      throw new Error('Web Crypto API jest niedostępne. RNG gry został zablokowany zamiast użyć Math.random().');
+    }
+  }
+
+  function secureSeedHex(bytes = 32) {
+    requireWebCrypto();
+    const arr = new Uint8Array(bytes);
+    crypto.getRandomValues(arr);
+    return bytesToHex(arr);
+  }
+
+  async function sha256Hex(text) {
+    requireWebCrypto();
+    const digest = await crypto.subtle.digest('SHA-256', textEncoder.encode(String(text)));
+    return bytesToHex(new Uint8Array(digest));
+  }
+
+  async function importHmacKey(seedHex) {
+    requireWebCrypto();
+    return crypto.subtle.importKey(
+      'raw', hexToBytes(seedHex),
+      { name:'HMAC', hash:'SHA-256' },
+      false, ['sign']
+    );
+  }
+
+  async function hmacSha256HexWithKey(key, messageText) {
+    requireWebCrypto();
+    const sig = await crypto.subtle.sign('HMAC', key, textEncoder.encode(String(messageText)));
+    return bytesToHex(new Uint8Array(sig));
+  }
+
+  function digestToUnitFloat(digestHex) {
+    // 52 deterministic bits -> exactly representable integer / 2^52 -> [0,1).
+    const n = parseInt(digestHex.slice(0, 13), 16);
+    return n / 0x10000000000000;
+  }
+
+  const FairRNG = (() => {
+    const LS = 'cwelsino_fair_webcrypto_v2';
+    const MAX_HISTORY = 60;
+    const MAX_REVEALS = 12;
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch(e) { saved = {}; }
+
+    let serverSeed = typeof saved.serverSeed === 'string' && /^[0-9a-f]{64}$/i.test(saved.serverSeed)
+      ? saved.serverSeed : secureSeedHex(32);
+    let clientSeed = typeof saved.clientSeed === 'string' && saved.clientSeed
+      ? saved.clientSeed : ('cwelsino-' + secureSeedHex(8));
+    let nonce = Number.isInteger(saved.nonce) && saved.nonce >= 0 ? saved.nonce : 0;
+    let serverSeedHash = typeof saved.serverSeedHash === 'string' ? saved.serverSeedHash : '';
+    let currentRound = null;
+    let lastRound = saved.lastRound || null;
+    let history = Array.isArray(saved.history) ? saved.history.slice(-MAX_HISTORY) : [];
+    let revealedSeeds = Array.isArray(saved.revealedSeeds) ? saved.revealedSeeds.slice(-MAX_REVEALS) : [];
+    let hmacKey = null;
+    let readyError = null;
+
+    function persist() {
+      try {
+        localStorage.setItem(LS, JSON.stringify({
+          serverSeed, serverSeedHash, clientSeed, nonce, lastRound,
+          history: history.slice(-MAX_HISTORY),
+          revealedSeeds: revealedSeeds.slice(-MAX_REVEALS)
+        }));
+      } catch(e) {}
+    }
+
+    const readyPromise = (async () => {
+      try {
+        requireWebCrypto();
+        serverSeedHash = await sha256Hex(serverSeed);
+        hmacKey = await importHmacKey(serverSeed);
+        persist();
+      } catch (e) {
+        readyError = e;
+      }
+      try { refreshFairUI(); } catch(e) {}
+    })();
+
+    async function ensureReady() {
+      await readyPromise;
+      if (readyError) throw readyError;
+      if (!hmacKey) hmacKey = await importHmacKey(serverSeed);
+    }
+
+    async function beginRound(type, meta = {}) {
+      await ensureReady();
+      if (currentRound) throw new Error('Fair RNG round already active');
+      currentRound = {
+        id: `${serverSeedHash.slice(0,12)}:${nonce}:${Date.now().toString(36)}`,
+        type, nonce, clientSeed, serverSeedHash,
+        counter: 0, draws: [], meta,
+        startedAt: new Date().toISOString()
+      };
+      refreshFairUI();
+      return currentRound;
+    }
+
+    async function random(label = 'rng') {
+      await ensureReady();
+      if (!currentRound) throw new Error('Outcome RNG requested outside an active paid round');
+      const c = currentRound.counter++;
+      const msg = `${currentRound.clientSeed}:${currentRound.nonce}:${c}`;
+      const digest = await hmacSha256HexWithKey(hmacKey, msg);
+      const value = digestToUnitFloat(digest);
+      currentRound.draws.push({counter:c, label, message:msg, digest, value});
+      return value;
+    }
+
+    function endRound(summary = {}) {
+      if (!currentRound) return null;
+      currentRound.finishedAt = new Date().toISOString();
+      currentRound.summary = summary;
+      lastRound = currentRound;
+      history.push(currentRound);
+      if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+      currentRound = null;
+      nonce += 1;
+      persist(); refreshFairUI();
+      return lastRound;
+    }
+
+    function abortRound(reason = 'aborted') {
+      if (!currentRound) return;
+      currentRound.aborted = reason;
+      currentRound = null;
+      persist(); refreshFairUI();
+    }
+
+    function setClientSeed(next) {
+      next = String(next || '').trim();
+      if (!next) throw new Error('Client Seed nie może być pusty.');
+      if (currentRound) throw new Error('Nie można zmieniać Client Seeda podczas rundy.');
+      clientSeed = next.slice(0,128);
+      nonce = 0;
+      persist(); refreshFairUI();
+    }
+
+    async function rotateAndReveal() {
+      await ensureReady();
+      if (currentRound) throw new Error('Poczekaj do końca bieżącej rundy.');
+      const oldSeed = serverSeed;
+      const oldHash = serverSeedHash;
+      const roundIds = history.filter(r => r.serverSeedHash === oldHash).map(r => r.id);
+      revealedSeeds.push({
+        serverSeed: oldSeed,
+        serverSeedHash: oldHash,
+        roundIds,
+        revealedAt: new Date().toISOString()
+      });
+      if (revealedSeeds.length > MAX_REVEALS) revealedSeeds = revealedSeeds.slice(-MAX_REVEALS);
+
+      serverSeed = secureSeedHex(32);
+      serverSeedHash = await sha256Hex(serverSeed);
+      hmacKey = await importHmacKey(serverSeed);
+      nonce = 0;
+      persist(); refreshFairUI();
+      return revealedSeeds[revealedSeeds.length - 1];
+    }
+
+    function getRevealForHash(hash) {
+      for (let i=revealedSeeds.length-1; i>=0; i--) {
+        if (revealedSeeds[i].serverSeedHash === hash) return revealedSeeds[i];
+      }
+      return null;
+    }
+
+    function getRoundById(id) {
+      return history.find(r => r.id === id) || null;
+    }
+
+    async function verifyRoundFull(roundId) {
+      await ensureReady();
+      const round = getRoundById(roundId) || lastRound;
+      if (!round) return {ok:false, reason:'Brak zapisanej rundy.'};
+      const reveal = getRevealForHash(round.serverSeedHash);
+      if (!reveal) return {ok:false, reason:'Server Seed dla tej rundy nie został jeszcze ujawniony. Użyj ROTATE + REVEAL.'};
+      const checkHash = await sha256Hex(reveal.serverSeed);
+      if (checkHash !== round.serverSeedHash) return {ok:false, reason:'Ujawniony Server Seed nie pasuje do wcześniejszego hasha.'};
+      return replayFairRound(round, reveal.serverSeed);
+    }
+
+    function state() {
+      return {
+        ready: !readyError && !!serverSeedHash,
+        readyError: readyError ? String(readyError.message || readyError) : null,
+        serverSeedHash, clientSeed, nonce, currentRound, lastRound,
+        history: history.slice(), revealedSeeds: revealedSeeds.slice()
+      };
+    }
+    function hasActiveRound() { return !!currentRound; }
+    persist();
+    return {ensureReady,beginRound,random,endRound,abortRound,setClientSeed,rotateAndReveal,verifyRoundFull,state,hasActiveRound,getRoundById,getRevealForHash};
+  })();
+
+  async function fairRandom(label) { return FairRNG.random(label); }
+
   const SYMBOLS = {
     "monkey":    { weight: 4.0,  payout: {3: 3.2,   4: 18.0,  5: 320.0}, tier: "win" },
     "punkBlue":  { weight: 6.2,  payout: {3: 1.8,   4: 10.0,  5: 100.0}, tier: "win" },
@@ -834,9 +1405,9 @@
 
   const WILD_MULT_VALUES  = [2, 3, 4, 5];
   const WILD_MULT_WEIGHTS = [0.45, 0.30, 0.18, 0.07];
-  function rollWildMultiplier() {
+  function rollWildMultiplier(rng = Math.random) {
     const total = WILD_MULT_WEIGHTS.reduce((a,b)=>a+b,0);
-    let r = Math.random() * total;
+    let r = rng('wild-multiplier') * total;
     for (let i=0;i<WILD_MULT_VALUES.length;i++){
       r -= WILD_MULT_WEIGHTS[i];
       if (r <= 0) return WILD_MULT_VALUES[i];
@@ -859,22 +1430,34 @@
   const BET_PRESETS = [0.5, 0.8, 1, 2, 5, 8, 10, 25, 30, 50, 75, 100];
   let state = { balance: 1000, baseBet: 10, anteActive: false, busy: false };
 
-  function getActualCost() { return state.anteActive ? state.baseBet * 2.0 : state.baseBet; }
-  function getBuyBonusCost() { return state.baseBet * 25; }
-  function getBuySuperBonusCost() { return state.baseBet * 107; }
+  // --- BALANCE CONFIG (~96% target RTP) ---
+  // Super Bonus Free Spins stay at 1.00x strength.
+  // Normal game + regular Free Spins are trimmed slightly.
+  const BASE_GAME_PAYOUT_SCALE = 0.867486;
+  const REGULAR_BONUS_PAYOUT_SCALE = 0.867486;
+  const ANTE_SCATTER_WEIGHT = 3.545;
+  const BUY_BONUS_COST_MULT = 30.0519;
+  const BUY_SUPER_COST_MULT = 202.7738;
 
-  function weightedSymbol(allowScatter = true, isSuperFS = false) {
+  function getActualCost() { return state.anteActive ? state.baseBet * 2.0 : state.baseBet; }
+  function getBuyBonusCost() { return state.baseBet * BUY_BONUS_COST_MULT; }
+  function getBuySuperBonusCost() { return state.baseBet * BUY_SUPER_COST_MULT; }
+
+  function weightedSymbol(allowScatter = true, isSuperFS = false, anteOverride = null, rng = Math.random) {
+    // Gameplay uses state.anteActive. Simulators can pass an explicit override
+    // so RTP tests do not depend on the current UI checkbox state.
+    const anteActive = anteOverride === null ? state.anteActive : !!anteOverride;
     const currentWeights = SYMBOL_LIST.map(s => {
       if (s === SCATTER) {
         if (!allowScatter) return 0;
-        if (state.anteActive) return 4.0; 
+        if (anteActive) return ANTE_SCATTER_WEIGHT;
         return SYMBOLS[s].weight;
       }
       if (s === WILD && isSuperFS) return 1.1;
       return SYMBOLS[s].weight;
     });
     const totalWeight = currentWeights.reduce((a,b)=>a+b,0);
-    let r = Math.random() * totalWeight;
+    let r = rng('symbol') * totalWeight;
     for (let i=0;i<SYMBOL_LIST.length;i++){
       r -= currentWeights[i];
       if (r <= 0) return SYMBOL_LIST[i];
@@ -882,12 +1465,12 @@
     return SYMBOL_LIST[SYMBOL_LIST.length-1];
   }
 
-  function spinReels(isSuperFS = false) {
+  function spinReels(isSuperFS = false, anteOverride = null, rng = Math.random) {
     const g = Array.from({length: 5}, () => Array(5).fill(null));
     for (let col = 0; col < 5; col++) {
       let scatterPlacedInCol = false;
       for (let row = 0; row < 5; row++) {
-        const sym = weightedSymbol(!scatterPlacedInCol, isSuperFS);
+        const sym = weightedSymbol(!scatterPlacedInCol, isSuperFS, anteOverride, rng);
         if (sym === SCATTER) scatterPlacedInCol = true;
         g[row][col] = sym;
       }
@@ -899,26 +1482,96 @@
     return SYMBOL_LIST[Math.floor(Math.random() * SYMBOL_LIST.length)];
   }
 
-  function spinReelsForBuyBonus() {
-    const g = spinReels();
+  function spinReelsForBuyBonus(anteOverride = null, rng = Math.random) {
+    const g = spinReels(false, anteOverride, rng);
     for (let r=0;r<5;r++) for (let c=0;c<5;c++) if(g[r][c] === SCATTER) g[r][c] = SYMBOL_LIST[6];
-    const rand = Math.random();
+    const rand = rng('buy-bonus-scatter-count');
     let numScatters = rand > 0.97 ? 5 : (rand > 0.85 ? 4 : 3);
     const availableCols = [0, 1, 2, 3, 4];
     for(let i=0; i<numScatters; i++){
-      const colIdx = Math.floor(Math.random() * availableCols.length);
+      const colIdx = Math.floor(rng('buy-bonus-column') * availableCols.length);
       const col = availableCols.splice(colIdx, 1)[0];
-      const row = Math.floor(Math.random() * 5);
+      const row = Math.floor(rng('buy-bonus-row') * 5);
       g[row][col] = SCATTER;
     }
     return g;
   }
 
-  function spinReelsForBuySuperBonus() {
-    const g = spinReels();
+  function spinReelsForBuySuperBonus(anteOverride = null, rng = Math.random) {
+    const g = spinReels(false, anteOverride, rng);
     for (let r=0;r<5;r++) for (let c=0;c<5;c++) if(g[r][c] === SCATTER) g[r][c] = SYMBOL_LIST[6];
     for (let col = 0; col < 5; col++) {
-      const row = Math.floor(Math.random() * 5);
+      const row = Math.floor(rng('buy-super-row') * 5);
+      g[row][col] = SCATTER;
+    }
+    return g;
+  }
+
+  // Async gameplay/replay variants. They use Web Crypto RNG; the synchronous
+  // versions above remain only for fast offline RTP Monte Carlo simulation.
+  async function rollWildMultiplierAsync(rng = fairRandom) {
+    const total = WILD_MULT_WEIGHTS.reduce((a,b)=>a+b,0);
+    let r = (await rng('wild-multiplier')) * total;
+    for (let i=0;i<WILD_MULT_VALUES.length;i++) {
+      r -= WILD_MULT_WEIGHTS[i];
+      if (r <= 0) return WILD_MULT_VALUES[i];
+    }
+    return WILD_MULT_VALUES[WILD_MULT_VALUES.length-1];
+  }
+
+  async function weightedSymbolAsync(allowScatter = true, isSuperFS = false, anteOverride = null, rng = fairRandom) {
+    const anteActive = anteOverride === null ? state.anteActive : !!anteOverride;
+    const currentWeights = SYMBOL_LIST.map(s => {
+      if (s === SCATTER) {
+        if (!allowScatter) return 0;
+        if (anteActive) return ANTE_SCATTER_WEIGHT;
+        return SYMBOLS[s].weight;
+      }
+      if (s === WILD && isSuperFS) return 1.1;
+      return SYMBOLS[s].weight;
+    });
+    const totalWeight = currentWeights.reduce((a,b)=>a+b,0);
+    let r = (await rng('symbol')) * totalWeight;
+    for (let i=0;i<SYMBOL_LIST.length;i++) {
+      r -= currentWeights[i];
+      if (r <= 0) return SYMBOL_LIST[i];
+    }
+    return SYMBOL_LIST[SYMBOL_LIST.length-1];
+  }
+
+  async function spinReelsAsync(isSuperFS = false, anteOverride = null, rng = fairRandom) {
+    const g = Array.from({length:5}, () => Array(5).fill(null));
+    for (let col=0; col<5; col++) {
+      let scatterPlacedInCol = false;
+      for (let row=0; row<5; row++) {
+        const sym = await weightedSymbolAsync(!scatterPlacedInCol, isSuperFS, anteOverride, rng);
+        if (sym === SCATTER) scatterPlacedInCol = true;
+        g[row][col] = sym;
+      }
+    }
+    return g;
+  }
+
+  async function spinReelsForBuyBonusAsync(anteOverride = null, rng = fairRandom) {
+    const g = await spinReelsAsync(false, anteOverride, rng);
+    for (let r=0;r<5;r++) for (let c=0;c<5;c++) if (g[r][c] === SCATTER) g[r][c] = SYMBOL_LIST[6];
+    const rand = await rng('buy-bonus-scatter-count');
+    const numScatters = rand > 0.97 ? 5 : (rand > 0.85 ? 4 : 3);
+    const availableCols = [0,1,2,3,4];
+    for (let i=0;i<numScatters;i++) {
+      const colIdx = Math.floor((await rng('buy-bonus-column')) * availableCols.length);
+      const col = availableCols.splice(colIdx,1)[0];
+      const row = Math.floor((await rng('buy-bonus-row')) * 5);
+      g[row][col] = SCATTER;
+    }
+    return g;
+  }
+
+  async function spinReelsForBuySuperBonusAsync(anteOverride = null, rng = fairRandom) {
+    const g = await spinReelsAsync(false, anteOverride, rng);
+    for (let r=0;r<5;r++) for (let c=0;c<5;c++) if (g[r][c] === SCATTER) g[r][c] = SYMBOL_LIST[6];
+    for (let col=0; col<5; col++) {
+      const row = Math.floor((await rng('buy-super-row')) * 5);
       g[row][col] = SCATTER;
     }
     return g;
@@ -926,7 +1579,7 @@
 
   function fmt(n) { return n.toLocaleString('pl-PL', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
-  function evaluateSpin(grid, baseBet, isBonus = false, multGrid = null) {
+  function evaluateSpin(grid, baseBet, isBonus = false, multGrid = null, payoutScale = 1.0) {
     let totalWin = 0; const details = []; const winCells = new Set(); const scatterCells = [];
     let scatterCount = 0;
     for (let r=0;r<5;r++) for (let c=0;c<5;c++) if (grid[r][c] === SCATTER) { scatterCount++; scatterCells.push(r+","+c); }
@@ -935,7 +1588,7 @@
     if (scatterCount >= 3){
       const key = Math.min(scatterCount,5);
       if (!isBonus) {
-        const scatterWin = baseBet * (SYMBOLS[SCATTER].payout[key] || 9.0);
+        const scatterWin = baseBet * (SYMBOLS[SCATTER].payout[key] || 9.0) * payoutScale;
         totalWin += scatterWin; 
         // First-time bonus award should always grant 10 free spins
         freeSpinsWon = 10;
@@ -978,7 +1631,7 @@
       if (matchLength >= 3 && firstSym && SYMBOLS[firstSym]) {
         const baseMult = SYMBOLS[firstSym].payout[matchLength] || 0;
         if (baseMult > 0) {
-          const baseWin = baseBet * baseMult;
+          const baseWin = baseBet * baseMult * payoutScale;
           // count wild multipliers that are physically on this line (for later grouping)
           let lineWildSum = 0;
           let wildCountInLine = 0;
@@ -1057,42 +1710,270 @@
     return { totalWin, details, winCells, scatterCells, scatterCount, freeSpinsWon };
   }
 
-  function simulateBaseSpin(baseBet = 1.0, ante = false) {
-    const grid = spinReels(false, ante);
-    const res = evaluateSpin(grid, baseBet, false, null);
-    let totalWin = res.totalWin;
-    let fsLeft = res.freeSpinsWon;
+  function multMapSnapshot(map) {
+    return Array.from(map.entries()).sort((a,b) => a[0].localeCompare(b[0]));
+  }
 
+  function gridClone(g) { return g.map(row => row.slice()); }
+
+  function roundNumbersClose(a, b, eps = 1e-9) {
+    return Math.abs(Number(a) - Number(b)) <= eps * Math.max(1, Math.abs(Number(a)), Math.abs(Number(b)));
+  }
+
+  function compareReplay(saved, replay) {
+    const issues = [];
+    const s = saved || {};
+    const r = replay || {};
+    if (JSON.stringify(s.baseGrid) !== JSON.stringify(r.baseGrid)) issues.push('baseGrid');
+    if (!roundNumbersClose(s.baseWin, r.baseWin)) issues.push('baseWin');
+    if (s.scatterCount !== r.scatterCount) issues.push('scatterCount');
+    if (!!s.superTriggered !== !!r.superTriggered) issues.push('superTriggered');
+    if (!roundNumbersClose(s.totalWin, r.totalWin)) issues.push('totalWin');
+    const sb = s.bonus || null, rb = r.bonus || null;
+    if (!!sb !== !!rb) issues.push('bonus presence');
+    if (sb && rb) {
+      if (!roundNumbersClose(sb.totalFsWin, rb.totalFsWin)) issues.push('bonus.totalFsWin');
+      if (sb.spinsPlayed !== rb.spinsPlayed) issues.push('bonus.spinsPlayed');
+      if (JSON.stringify(sb.spins) !== JSON.stringify(rb.spins)) issues.push('bonus.spins transcript');
+    }
+    return issues;
+  }
+
+  async function makeReplayRng(serverSeed, clientSeed, nonce) {
+    const key = await importHmacKey(serverSeed);
+    let counter = 0;
+    const draws = [];
+    return {
+      draws,
+      async random(label='rng') {
+        const c = counter++;
+        const message = `${clientSeed}:${nonce}:${c}`;
+        const digest = await hmacSha256HexWithKey(key, message);
+        const value = digestToUnitFloat(digest);
+        draws.push({counter:c,label,message,digest,value});
+        return value;
+      }
+    };
+  }
+
+  async function replayFreeSpins(initialFsCount, isSuper, baseBet, rng) {
+    let fsLeft = initialFsCount;
+    let totalFsWin = 0;
+    const stickyWildsMap = new Map();
+    const spins = [];
+    let index = 0;
     while (fsLeft > 0) {
-      fsLeft -= 1;
-      const fsGrid = spinReels(false, ante);
+      fsLeft--;
+      const g = await spinReelsAsync(isSuper, false, rng);
       const multGrid = new Map();
-      for (let r = 0; r < 5; r++) {
-        for (let c = 0; c < 5; c++) {
-          if (fsGrid[r][c] === WILD) {
-            multGrid.set(r + ',' + c, rollWildMultiplier());
+      if (isSuper) {
+        stickyWildsMap.forEach((mult,key) => {
+          const [rr,cc] = key.split(',').map(Number);
+          g[rr][cc] = WILD;
+          multGrid.set(key,mult);
+        });
+      }
+      for (let rr=0; rr<5; rr++) {
+        for (let cc=0; cc<5; cc++) {
+          const k = rr+','+cc;
+          if (g[rr][cc] === WILD && !multGrid.has(k)) {
+            const m = await rollWildMultiplierAsync(rng);
+            multGrid.set(k,m);
+            if (isSuper) stickyWildsMap.set(k,m);
           }
         }
       }
-      const fsRes = evaluateSpin(fsGrid, baseBet, true, multGrid);
-      totalWin += fsRes.totalWin;
-      if (fsRes.freeSpinsWon > 0) fsLeft += fsRes.freeSpinsWon;
+      const res = evaluateSpin(g, baseBet, true, multGrid, isSuper ? 1.0 : REGULAR_BONUS_PAYOUT_SCALE);
+      totalFsWin += res.totalWin;
+      if (res.freeSpinsWon > 0) fsLeft += res.freeSpinsWon;
+      spins.push({
+        index:index++, grid:gridClone(g), multipliers:multMapSnapshot(multGrid),
+        scatterCount:res.scatterCount, win:res.totalWin,
+        retrigger:res.freeSpinsWon, fsLeftAfter:fsLeft
+      });
+      // Safety guard for corrupted/transparently malicious saved data; normal game never approaches this.
+      if (index > 10000) throw new Error('Replay przerwany: nienaturalnie długa seria retriggerów.');
+    }
+    return {isSuper, initialFsCount, totalFsWin, spinsPlayed:spins.length, spins};
+  }
+
+  async function replayFairRound(round, revealedServerSeed) {
+    try {
+      const hash = await sha256Hex(revealedServerSeed);
+      if (hash !== round.serverSeedHash) return {ok:false, reason:'Server Seed nie pasuje do committed hash.'};
+      const meta = round.meta || {};
+      const type = round.type;
+      const baseBet = Number(meta.bet);
+      const ante = !!meta.ante;
+      if (!(baseBet > 0)) return {ok:false, reason:'W historii rundy brakuje prawidłowej stawki.'};
+
+      const rr = await makeReplayRng(revealedServerSeed, round.clientSeed, round.nonce);
+      const rng = (label) => rr.random(label);
+      let baseGrid;
+      if (type === 'buy') baseGrid = await spinReelsForBuyBonusAsync(false, rng);
+      else if (type === 'super') baseGrid = await spinReelsForBuySuperBonusAsync(false, rng);
+      else baseGrid = await spinReelsAsync(false, ante, rng);
+
+      const initialPayoutScale = type === 'super' ? 1.0 : BASE_GAME_PAYOUT_SCALE;
+      const baseRes = evaluateSpin(baseGrid, baseBet, false, null, initialPayoutScale);
+      const bonusTriggered = baseRes.freeSpinsWon > 0 || type === 'buy' || type === 'super';
+      const superTriggered = type === 'super' || baseRes.scatterCount >= 5;
+      let bonus = null;
+      if (bonusTriggered) {
+        const spins = baseRes.freeSpinsWon > 0 ? baseRes.freeSpinsWon : 10;
+        bonus = await replayFreeSpins(spins, superTriggered, baseBet, rng);
+      }
+      const result = {
+        baseGrid:gridClone(baseGrid), baseWin:baseRes.totalWin,
+        scatterCount:baseRes.scatterCount, freeSpinsWon:baseRes.freeSpinsWon,
+        bonusTriggered, superTriggered, bonus,
+        totalWin:baseRes.totalWin + (bonus ? bonus.totalFsWin : 0)
+      };
+
+      const savedDraws = round.draws || [];
+      const drawIssues = [];
+      if (savedDraws.length !== rr.draws.length) drawIssues.push(`draw count ${savedDraws.length} != ${rr.draws.length}`);
+      const n = Math.min(savedDraws.length, rr.draws.length);
+      for (let i=0;i<n;i++) {
+        const a=savedDraws[i], b=rr.draws[i];
+        if (a.counter!==b.counter || a.label!==b.label || a.message!==b.message || a.digest!==b.digest || !roundNumbersClose(a.value,b.value,0)) {
+          drawIssues.push(`counter ${i}`); break;
+        }
+      }
+      const resultIssues = compareReplay(round.summary?.result, result);
+      if (drawIssues.length || resultIssues.length) {
+        return {
+          ok:false,
+          reason:`VERIFY FAIL · RNG: ${drawIssues.join(', ') || 'OK'} · RESULT: ${resultIssues.join(', ') || 'OK'}`,
+          checked:rr.draws.length,
+          result
+        };
+      }
+      return {
+        ok:true,
+        reason:`FULL VERIFY OK · odtworzono ${rr.draws.length} losów, planszę bazową, ${bonus ? bonus.spinsPlayed : 0} free spinów i wypłatę ${fmt(result.totalWin)}.`,
+        checked:rr.draws.length,
+        result
+      };
+    } catch(e) {
+      return {ok:false, reason:'VERIFY ERROR: ' + (e?.message || e)};
+    }
+  }
+
+  // --- RTP / MATH SIMULATION HELPERS ---
+  // These mirror the real game logic, including:
+  // - explicit ANTE override
+  // - 3/4 Scatter -> regular bonus
+  // - 5 Scatter -> Super Bonus
+  // - free-spin retriggers
+  // - random WILD multipliers
+  // - sticky WILDs in Super Bonus
+  function simulateFreeSpins(initialFsCount = 10, isSuper = false, baseBet = 1.0, ante = false) {
+    let fsLeft = initialFsCount;
+    let totalFsWin = 0;
+    const stickyWildsMap = new Map();
+
+    while (fsLeft > 0) {
+      fsLeft -= 1;
+      const g = spinReels(isSuper, false, Math.random);
+      const multGrid = new Map();
+
+      if (isSuper) {
+        stickyWildsMap.forEach((mult, key) => {
+          const [r, c] = key.split(',').map(Number);
+          g[r][c] = WILD;
+          multGrid.set(key, mult);
+        });
+      }
+
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+          const key = r + ',' + c;
+          if (g[r][c] === WILD && !multGrid.has(key)) {
+            const mult = rollWildMultiplier(Math.random);
+            multGrid.set(key, mult);
+            if (isSuper) stickyWildsMap.set(key, mult);
+          }
+        }
+      }
+
+      const fsRes = evaluateSpin(g, baseBet, true, multGrid, isSuper ? 1.0 : REGULAR_BONUS_PAYOUT_SCALE);
+      totalFsWin += fsRes.totalWin;
+      fsLeft += fsRes.freeSpinsWon;
+    }
+
+    return totalFsWin;
+  }
+
+  function simulateBaseSpin(baseBet = 1.0, ante = false) {
+    const grid = spinReels(false, ante, Math.random);
+    const res = evaluateSpin(grid, baseBet, false, null, BASE_GAME_PAYOUT_SCALE);
+    let totalWin = res.totalWin;
+
+    if (res.freeSpinsWon > 0) {
+      const isSuper = res.scatterCount >= 5;
+      totalWin += simulateFreeSpins(res.freeSpinsWon, isSuper, baseBet, false);
     }
 
     return totalWin;
   }
 
-  function estimateRTP(spins = 100000, ante = false) {
+  function simulateBuyBonus(baseBet = 1.0, ante = false) {
+    const grid = spinReelsForBuyBonus(false, Math.random);
+    const res = evaluateSpin(grid, baseBet, false, null, BASE_GAME_PAYOUT_SCALE);
+    const isSuper = res.scatterCount >= 5;
+    const fsCount = res.freeSpinsWon > 0 ? res.freeSpinsWon : 10;
+    return res.totalWin + simulateFreeSpins(fsCount, isSuper, baseBet, false);
+  }
+
+  function simulateBuySuperBonus(baseBet = 1.0, ante = false) {
+    const grid = spinReelsForBuySuperBonus(false, Math.random);
+    const res = evaluateSpin(grid, baseBet, false, null, 1.0);
+    const fsCount = res.freeSpinsWon > 0 ? res.freeSpinsWon : 10;
+    return res.totalWin + simulateFreeSpins(fsCount, true, baseBet, false);
+  }
+
+  function estimateRTP(spins = 100000, ante = false, mode = 'normal') {
+    const baseBet = 1.0;
+    const simulators = {
+      normal: () => simulateBaseSpin(baseBet, ante),
+      buyBonus: () => simulateBuyBonus(baseBet, ante),
+      buySuper: () => simulateBuySuperBonus(baseBet, ante)
+    };
+
+    if (!simulators[mode]) throw new Error(`Unknown RTP mode: ${mode}`);
+
+    const cost = mode === 'normal' ? (ante ? baseBet * 2 : baseBet)
+      : mode === 'buyBonus' ? baseBet * BUY_BONUS_COST_MULT
+      : baseBet * BUY_SUPER_COST_MULT;
+
     let totalReturn = 0;
-    for (let i = 0; i < spins; i++) {
-      totalReturn += simulateBaseSpin(1.0, ante);
-    }
-    const rtp = totalReturn / spins;
-    console.log(`Estimated RTP (${spins.toLocaleString()} spins, ante=${ante}): ${rtp.toFixed(6)}`);
+    for (let i = 0; i < spins; i++) totalReturn += simulators[mode]();
+
+    const rtp = totalReturn / (spins * cost);
+    console.log(`Estimated RTP [${mode}] (${spins.toLocaleString()} rounds, ante=${ante}): ${(rtp * 100).toFixed(4)}%`);
     return rtp;
   }
 
+  function estimateAllRTP(spins = 100000) {
+    const result = {
+      normal: estimateRTP(spins, false, 'normal'),
+      normalAnte: estimateRTP(spins, true, 'normal'),
+      buyBonus: estimateRTP(spins, false, 'buyBonus'),
+      buyBonusAnte: estimateRTP(spins, true, 'buyBonus'),
+      buySuper: estimateRTP(spins, false, 'buySuper'),
+      buySuperAnte: estimateRTP(spins, true, 'buySuper')
+    };
+    console.table(Object.fromEntries(Object.entries(result).map(([k,v]) => [k, { RTP: `${(v * 100).toFixed(4)}%` }])));
+    return result;
+  }
+
+  window.simulateFreeSpins = simulateFreeSpins;
+  window.simulateBaseSpin = simulateBaseSpin;
+  window.simulateBuyBonus = simulateBuyBonus;
+  window.simulateBuySuperBonus = simulateBuySuperBonus;
   window.estimateRTP = estimateRTP;
+  window.estimateAllRTP = estimateAllRTP;
 
   // --- UI CONTROLS & EVENT HANDLERS ---
   const gridEl = document.getElementById('grid');
@@ -1105,17 +1986,54 @@
   const buyBonusPrice = document.getElementById('buyBonusPrice');
   const buySuperBonusBtn = document.getElementById('buySuperBonusBtn');
   const buySuperBonusPrice = document.getElementById('buySuperBonusPrice');
+  const turboBtn = document.getElementById('turboBtn');
   const spinBtn = document.getElementById('spinBtn');
   const tickerHead = document.getElementById('tickerHead');
   const tickerLines = document.getElementById('tickerLines');
   const fsBanner = document.getElementById('fsBanner');
   const paytable = document.getElementById('paytable');
   const paytableToggle = document.getElementById('paytableToggle');
+  const fairToggle = document.getElementById('fairToggle');
+  const fairPanel = document.getElementById('fairPanel');
+  const fairClose = document.getElementById('fairClose');
+  const fairServerHash = document.getElementById('fairServerHash');
+  const fairClientSeed = document.getElementById('fairClientSeed');
+  const fairNonce = document.getElementById('fairNonce');
+  const fairDrawCount = document.getElementById('fairDrawCount');
+  const fairRoundSelect = document.getElementById('fairRoundSelect');
+  const fairPreviousSeed = document.getElementById('fairPreviousSeed');
+  const fairPreviousHash = document.getElementById('fairPreviousHash');
+  const fairApplyClient = document.getElementById('fairApplyClient');
+  const fairRotate = document.getElementById('fairRotate');
+  const fairVerify = document.getElementById('fairVerify');
+  const fairStatus = document.getElementById('fairStatus');
+  const fairDetails = document.getElementById('fairDetails');
+  const fairHistory = document.getElementById('fairHistory');
   const bigwinOverlay = document.getElementById('bigwinOverlay');
   const bigwinTitle = document.getElementById('bigwinTitle');
   const bigwinCounter = document.getElementById('bigwinCounter');
   const bankruptOverlay = document.getElementById('bankruptOverlay');
   const bankruptReset = document.getElementById('bankruptReset');
+
+  const BIGWIN_ASSET_PATHS = [
+    'bigwin_paint_sweep_1.png',
+    'bigwin_paint_burst.png',
+    'bigwin_paint_vertical.png',
+    'bigwin_paint_sweep_2.png',
+    'bigwin_graffiti_oi.png',
+    'bigwin_graffiti_no_future.png',
+    'bigwin_graffiti_chaos.png'
+  ];
+
+  function preloadBigWinAssets() {
+    BIGWIN_ASSET_PATHS.forEach(src => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.loading = 'eager';
+      img.src = src;
+    });
+  }
+  preloadBigWinAssets();
 
   function renderGrid(g, winSet = new Set(), scatterSet = new Set(), multGrid = null, stickySet = new Set()) {
     gridEl.innerHTML = '';
@@ -1190,6 +2108,95 @@
     } catch (e) { console.warn('animateWinCells err', e); }
   }
 
+
+  function setFairStatus(text, kind = '') {
+    if (!fairStatus) return;
+    fairStatus.textContent = text;
+    fairStatus.classList.remove('ok','bad');
+    if (kind) fairStatus.classList.add(kind);
+  }
+
+  function roundLabel(r) {
+    const total = Number(r?.summary?.result?.totalWin ?? 0);
+    return `nonce ${r.nonce} · ${r.type} · ${r.serverSeedHash.slice(0,10)}… · win ${fmt(total)}`;
+  }
+
+  function refreshFairUI() {
+    if (typeof fairServerHash === 'undefined' || !fairServerHash) return;
+    const st = FairRNG.state();
+    fairServerHash.textContent = st.ready ? st.serverSeedHash : (st.readyError ? 'RNG ZABLOKOWANY' : 'INICJALIZACJA…');
+    if (document.activeElement !== fairClientSeed) fairClientSeed.value = st.clientSeed;
+    fairNonce.textContent = String(st.currentRound ? st.currentRound.nonce : st.nonce);
+    fairDrawCount.textContent = String(st.currentRound ? st.currentRound.draws.length : (st.lastRound?.draws?.length || 0));
+
+    const latestReveal = st.revealedSeeds?.[st.revealedSeeds.length-1] || null;
+    fairPreviousSeed.textContent = latestReveal?.serverSeed || 'Jeszcze nie ujawniono — użyj ROTATE + REVEAL.';
+    fairPreviousHash.textContent = latestReveal?.serverSeedHash || '—';
+
+    const prevSelected = fairRoundSelect.value;
+    fairRoundSelect.innerHTML = '';
+    [...(st.history || [])].reverse().forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = roundLabel(r) + (FairRNG.getRevealForHash(r.serverSeedHash) ? ' · REVEALED' : ' · LOCKED');
+      fairRoundSelect.appendChild(opt);
+    });
+    if (prevSelected && FairRNG.getRoundById(prevSelected)) fairRoundSelect.value = prevSelected;
+
+    fairApplyClient.disabled = !!st.currentRound || state.busy || !st.ready;
+    fairRotate.disabled = !!st.currentRound || state.busy || !st.ready;
+    const selected = FairRNG.getRoundById(fairRoundSelect.value) || st.lastRound;
+    fairVerify.disabled = !selected || !FairRNG.getRevealForHash(selected.serverSeedHash) || !st.ready;
+
+    if (st.readyError) setFairStatus(st.readyError, 'bad');
+    else if (fairStatus.textContent.includes('inicjalizuje')) setFairStatus('Web Crypto RNG gotowy. Gameplay nie ma fallbacku do Math.random().', 'ok');
+
+    const lr = selected || st.lastRound;
+    fairDetails.textContent = lr ?
+      `WYBRANA RUNDA\nTYPE: ${lr.type}\nNONCE: ${lr.nonce}\nCLIENT: ${lr.clientSeed}\nSERVER HASH: ${lr.serverSeedHash}\nDRAWS: ${lr.draws?.length || 0}\nMETA: ${JSON.stringify(lr.meta || {}, null, 2)}\nRESULT: ${JSON.stringify(lr.summary?.result || {}, null, 2)}` :
+      'Brak zakończonej rundy.';
+
+    fairHistory.innerHTML = '';
+    [...(st.history || [])].reverse().slice(0,20).forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'fair-history-row';
+      const revealed = !!FairRNG.getRevealForHash(r.serverSeedHash);
+      row.innerHTML = `<strong>${roundLabel(r)}</strong><br>draws=${r.draws?.length || 0} · ${revealed ? 'seed ujawniony / można VERIFY' : 'seed jeszcze ukryty'}`;
+      fairHistory.appendChild(row);
+    });
+    if (!fairHistory.children.length) fairHistory.textContent = 'Brak historii.';
+  }
+
+  fairToggle.addEventListener('click', () => { fairPanel.classList.add('open'); refreshFairUI(); });
+  fairClose.addEventListener('click', () => fairPanel.classList.remove('open'));
+  fairPanel.addEventListener('click', (e) => { if (e.target === fairPanel) fairPanel.classList.remove('open'); });
+  fairRoundSelect.addEventListener('change', refreshFairUI);
+  fairApplyClient.addEventListener('click', () => {
+    try { FairRNG.setClientSeed(fairClientSeed.value); setFairStatus('Client Seed zastosowany. Nonce został zresetowany do 0.', 'ok'); }
+    catch(e) { setFairStatus(e.message, 'bad'); }
+    refreshFairUI();
+  });
+  fairRotate.addEventListener('click', async () => {
+    try {
+      const rev = await FairRNG.rotateAndReveal();
+      setFairStatus(`Ujawniono poprzedni Server Seed dla ${rev.roundIds.length} zapisanych rund. Wygenerowano nowy 256-bitowy seed.`, 'ok');
+      console.log('[PROVABLY FAIR] Revealed:', rev);
+    } catch(e) { setFairStatus(e.message, 'bad'); }
+    refreshFairUI();
+  });
+  fairVerify.addEventListener('click', async () => {
+    fairVerify.disabled = true;
+    setFairStatus('Odtwarzam całą rundę z Server Seed + Client Seed + Nonce…');
+    const v = await FairRNG.verifyRoundFull(fairRoundSelect.value);
+    setFairStatus(v.reason, v.ok ? 'ok' : 'bad');
+    if (v.result) console.log('[PROVABLY FAIR] Full replay result:', v.result);
+    refreshFairUI();
+  });
+
+  // Console helpers for the demo.
+  window.fairRngState = () => FairRNG.state();
+  window.verifyFairRound = async (roundId = null) => FairRNG.verifyRoundFull(roundId || FairRNG.state().lastRound?.id);
+
   function buildPaytable() {
     let html = '<h3>TABELA WYPŁAT (STAWKA BAZOWA: 1.00)</h3>';
     Object.keys(SYMBOLS).forEach(s => {
@@ -1216,227 +2223,397 @@
   });
 
   function showBigWin(amount, callback) {
-    playSound('coin');
-    
-    const mult = amount / getActualCost();
-    if (mult >= 30) {
-      bigwinTitle.textContent = "EPIC PUNK WIN!";
-    } else if (mult >= 15) {
-      bigwinTitle.textContent = "BIG WIN!";
-    } else {
-      bigwinTitle.textContent = "GREAT WIN!";
+    const actualCost = Math.max(0.01, getActualCost());
+    const greatAt = actualCost * 5;
+    const bigAt = actualCost * 15;
+    const epicAt = actualCost * 30;
+
+    let currentTier = 'pre';
+    let rafId = null;
+    let closed = false;
+
+    bigwinCounter.textContent = fmt(0);
+    bigwinTitle.textContent = "WIN!";
+    bigwinOverlay.classList.remove('tier-great', 'tier-big', 'tier-epic');
+    bigwinOverlay.classList.add('open');
+
+    function hitTier(tier, title) {
+      if (currentTier === tier || closed) return;
+      currentTier = tier;
+
+      bigwinOverlay.classList.remove('tier-great', 'tier-big', 'tier-epic');
+      bigwinOverlay.classList.add('tier-' + tier);
+      bigwinTitle.textContent = title;
+
+      // Restart wejściowej animacji przy KAŻDYM kolejnym progu.
+      bigwinTitle.classList.remove('tier-hit');
+      bigwinOverlay.classList.remove('burst-hit');
+      void bigwinTitle.offsetWidth;
+      void bigwinOverlay.offsetWidth;
+      bigwinTitle.classList.add('tier-hit');
+      bigwinOverlay.classList.add('burst-hit');
+      setTimeout(() => bigwinTitle.classList.remove('tier-hit'), 540);
+      setTimeout(() => bigwinOverlay.classList.remove('burst-hit'), 760);
+
+      playBigWinTierSound(tier);
     }
 
-    bigwinOverlay.classList.add('open');
-    let current = 0;
-    const step = amount / 30;
-    const timer = setInterval(() => {
-      current += step;
-      if (current >= amount) {
-        current = amount;
-        clearInterval(timer);
+    function updateTier(value) {
+      if (value >= epicAt) hitTier('epic', 'EPIC PUNK WIN!');
+      else if (value >= bigAt) hitTier('big', 'BIG WIN!');
+      else if (value >= greatAt) hitTier('great', 'GREAT WIN!');
+    }
+
+    // Liczenie jest podzielone na odcinki, żeby GREAT -> BIG -> EPIC
+    // nie przeskakiwały przez ekran w ułamku sekundy przy dużej wygranej.
+    const segments = [];
+    const addSegment = (from, to, duration) => {
+      if (to > from + 0.000001) segments.push({ from, to, duration });
+    };
+
+    const firstEnd = Math.min(amount, greatAt);
+    addSegment(0, firstEnd, 700);
+
+    if (amount > greatAt) {
+      const end = Math.min(amount, bigAt);
+      const ratio = (end - greatAt) / Math.max(actualCost * 10, 0.01);
+      addSegment(greatAt, end, Math.max(650, 1100 * ratio));
+    }
+
+    if (amount > bigAt) {
+      const end = Math.min(amount, epicAt);
+      const ratio = (end - bigAt) / Math.max(actualCost * 15, 0.01);
+      addSegment(bigAt, end, Math.max(700, 1400 * ratio));
+    }
+
+    if (amount > epicAt) {
+      const extraMult = (amount - epicAt) / actualCost;
+      addSegment(epicAt, amount, Math.min(2200, 900 + extraMult * 28));
+    }
+
+    // Bezpieczny fallback, gdyby amount było nietypowo małe.
+    if (!segments.length) addSegment(0, amount, 700);
+
+    const totalDuration = segments.reduce((sum, s) => sum + s.duration, 0);
+    const startTime = performance.now();
+
+    function valueForElapsed(elapsed) {
+      let t = Math.max(0, Math.min(totalDuration, elapsed));
+      for (const seg of segments) {
+        if (t <= seg.duration) {
+          const p = seg.duration > 0 ? t / seg.duration : 1;
+          // Smoothstep: płynniej niż liniowy setInterval, ale nadal trafia dokładnie w progi.
+          const eased = p * p * (3 - 2 * p);
+          return seg.from + (seg.to - seg.from) * eased;
+        }
+        t -= seg.duration;
       }
+      return amount;
+    }
+
+    function tick(now) {
+      if (closed) return;
+      const elapsed = now - startTime;
+      const current = Math.min(amount, valueForElapsed(elapsed));
       bigwinCounter.textContent = fmt(current);
-    }, 30);
+      updateTier(current);
+
+      if (elapsed < totalDuration) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        bigwinCounter.textContent = fmt(amount);
+        updateTier(amount);
+        rafId = null;
+      }
+    }
+
+    rafId = requestAnimationFrame(tick);
 
     const closeHandler = () => {
-      bigwinOverlay.classList.remove('open');
+      closed = true;
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      bigwinOverlay.classList.remove('open', 'tier-great', 'tier-big', 'tier-epic', 'burst-hit');
+      bigwinTitle.classList.remove('tier-hit');
       bigwinOverlay.removeEventListener('click', closeHandler);
-      clearInterval(timer);
       if (callback) callback();
     };
     bigwinOverlay.addEventListener('click', closeHandler);
   }
 
+  function waitMs(ms) {
+    return new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
+  }
+
+  function currentCellSymbol(cell) {
+    const img = cell.querySelector('.slot-icon');
+    if (!img) return null;
+    const src = img.getAttribute('src') || '';
+    for (const [key, html] of Object.entries(imageTags)) {
+      const m = html.match(/src="([^"]+)"/);
+      if (m && src.endsWith(m[1])) return key;
+    }
+    return null;
+  }
+
+  function makeReelFrame(sym, cls) {
+    const frame = document.createElement('div');
+    frame.className = 'reel-symbol-frame ' + cls;
+    frame.innerHTML = imageTags[sym] || '';
+    return frame;
+  }
+
+  async function slideReelCell(cell, nextSym, duration = 72, isStopping = false) {
+    const oldSym = currentCellSymbol(cell) || randomSpinSymbol();
+    const layer = document.createElement('div');
+    layer.className = 'reel-window-layer';
+
+    const track = document.createElement('div');
+    track.className = 'reel-track';
+    track.appendChild(makeReelFrame(nextSym, 'new-symbol'));
+    track.appendChild(makeReelFrame(oldSym, 'old-symbol'));
+    layer.appendChild(track);
+
+    if (typeof track.animate !== 'function') {
+      cell.innerHTML = imageTags[nextSym] || '';
+      await waitMs(duration);
+      return;
+    }
+
+    // Remove the old static DOM before the moving strip is inserted. There is
+    // never a third/background symbol behind the reel track.
+    cell.replaceChildren(layer);
+
+    const d = Math.max(38, Math.round(duration));
+    const easing = isStopping
+      ? 'cubic-bezier(.12,.76,.18,1)'
+      : 'linear';
+
+    // Subtelny motion blur zależny od faktycznej prędkości przejazdu.
+    // Bardzo szybkie reele są lekko rozmyte, podczas anticipation blur
+    // naturalnie maleje, a finalne lądowanie pozostaje prawie ostre.
+    let motionBlurPx;
+    if (isStopping) {
+      motionBlurPx = 0.10;
+    } else {
+      motionBlurPx = Math.max(0.12, Math.min(0.82, 1.05 - d / 180));
+    }
+    layer.classList.add('reel-motion-blur');
+    layer.style.setProperty('--reel-motion-blur', motionBlurPx.toFixed(2) + 'px');
+
+    const anim = track.animate([
+      { transform: 'translate3d(0,-50%,0)' },
+      { transform: 'translate3d(0,0,0)' }
+    ], { duration: d, easing, fill: 'forwards' });
+
+    try { await anim.finished; } catch (_) {}
+    cell.innerHTML = imageTags[nextSym] || '';
+  }
+
+  async function slideReelCells(cells, symbols, duration, isStopping = false) {
+    const list = Array.from(cells);
+    await Promise.all(list.map((cell, i) =>
+      slideReelCell(cell, symbols[i], duration, isStopping)
+    ));
+  }
+
+  async function runVisualSpinLoop(getCells, shouldContinue, duration = 58) {
+    while (shouldContinue()) {
+      const cells = Array.from(getCells()).filter(Boolean);
+      if (!cells.length) break;
+      const symbols = cells.map(() => randomSpinSymbol());
+      await slideReelCells(cells, symbols, duration, false);
+    }
+  }
+
   async function animateReelsLeftToRight(targetGrid, multGrid = null, stickySet = new Set()) {
     playSound('spin');
+    // Manualny skip dotyczy tylko bieżącej animacji. Turbo działa stale.
     skipSpinRequested = false;
+    const fastForward = () => skipSpinRequested || isTurboEffective();
 
     const allCells = gridEl.querySelectorAll('.cell');
     allCells.forEach(c => {
-      c.classList.remove('stopped', 'win', 'scatterwin', 'reel-anticipation');
+      c.classList.remove('stopped', 'win', 'scatterwin', 'reel-anticipation', 'anticipation-soft-stop');
       c.classList.add('spinning');
     });
 
+    // Każda kolumna ma WŁASNĄ pętlę wizualną. Dzięki temu lądowanie jednego
+    // bębna nigdy nie blokuje przewijania pozostałych.
+    const reelRunning = Array(5).fill(true);
+    const reelLoops = Array.from({ length: 5 }, (_, col) =>
+      runVisualSpinLoop(
+        () => gridEl.querySelectorAll(`.cell[data-col="${col}"].spinning`),
+        () => reelRunning[col] && !fastForward(),
+        58
+      )
+    );
+
+    async function stopBaseLoop(col) {
+      reelRunning[col] = false;
+      try { await reelLoops[col]; } catch (_) {}
+    }
+
+    function finalizeColumn(col, softStop = false) {
+      const colCells = gridEl.querySelectorAll(`.cell[data-col="${col}"]`);
+      let scattersInColumn = 0;
+
+      colCells.forEach(cell => {
+        const row = parseInt(cell.dataset.row);
+        const sym = targetGrid[row][col];
+        const k = row + ',' + col;
+
+        cell.classList.remove('spinning', 'reel-anticipation', 'anticipation-soft-stop');
+        if (softStop) cell.classList.add('anticipation-soft-stop');
+        cell.classList.add('stopped');
+        // The final symbol has already arrived through slideReelCells().
+        // Replacing with the same static icon only cleans the moving track.
+        cell.innerHTML = imageTags[sym] || '';
+
+        if (sym === SCATTER) scattersInColumn++;
+
+        if (multGrid && multGrid.has(k)) {
+          const badge = document.createElement('div');
+          badge.className = 'wild-mult-badge';
+          badge.textContent = 'x' + multGrid.get(k);
+          cell.appendChild(badge);
+        }
+
+        if (stickySet && stickySet.has(k)) {
+          cell.classList.add('sticky-wild');
+        }
+      });
+
+      return scattersInColumn;
+    }
+
     let currentScatters = 0;
+
+    // Pierwszy bęben dostaje chwilę pełnego ruchu. Następne zatrzymują się
+    // sekwencyjnie, ale ich własne pętle cały czas pracują w tle.
+    if (!fastForward()) await waitMs(210);
 
     for (let col = 0; col < 5; col++) {
       const isAnticipating = (currentScatters >= 2 && col >= 2);
+      const colCells = gridEl.querySelectorAll(`.cell[data-col="${col}"]`);
 
-      if (isAnticipating && !skipSpinRequested) {
-        const colCells = gridEl.querySelectorAll(`.cell[data-col="${col}"]`);
+      if (fastForward()) {
+        // Przy skipie/turbo wyłączamy pętlę tej kolumny i od razu pokazujemy wynik.
+        await stopBaseLoop(col);
+        currentScatters += finalizeColumn(col);
+        playSound('reelStop');
+        continue;
+      }
+
+      if (isAnticipating) {
         colCells.forEach(c => c.classList.add('reel-anticipation'));
         playAnticipationSound(col - 2);
 
-        // slower anticipation to preserve tension (slightly slower)
-        let waitTime = 1400;
-        const fastStep = 60; // fast cycling for non-anticipation reels
-        const slowStep = 140; // slow cycle for anticipation column
-        let iter = 0;
-        while (waitTime > 0 && !skipSpinRequested) {
-          // update other still-spinning reels faster to imitate spinning
-          const otherSpinning = gridEl.querySelectorAll('.cell.spinning:not(.reel-anticipation)');
-          otherSpinning.forEach(cell => {
-            cell.innerHTML = imageTags[randomSpinSymbol()];
-          });
-
-          // update anticipation column less frequently for tension
-          if (iter % Math.ceil(slowStep / fastStep) === 0) {
-            colCells.forEach(cell => {
-              cell.innerHTML = imageTags[randomSpinSymbol()];
-            });
-          }
-
-          await new Promise(res => setTimeout(res, fastStep));
-          waitTime -= fastStep;
-          iter++;
+        // Pozostałe kolumny dalej kręcą się na własnych pętlach.
+        // Ta kolumna dostaje krótki czas napięcia, po czym przechodzi do
+        // płynnego, niezależnego hamowania.
+        const anticipationHold = 520 + (col - 2) * 110;
+        const holdStart = performance.now();
+        while (!fastForward() && performance.now() - holdStart < anticipationHold) {
+          await waitMs(24);
         }
-      } else if (!skipSpinRequested) {
-        // while waiting for this column to stop, update all still-spinning reels (slightly slower)
-        let waitTime = 180; // total period to show fast cycling
-        const step = 28;
-        while (waitTime > 0 && !skipSpinRequested) {
-          const spinningCells = gridEl.querySelectorAll('.cell.spinning');
-          spinningCells.forEach(cell => {
-            const row = parseInt(cell.dataset.row);
-            cell.innerHTML = imageTags[randomSpinSymbol()];
-          });
-          await new Promise(res => setTimeout(res, step));
-          waitTime -= step;
-        }
-      }
 
-      const colCells = gridEl.querySelectorAll(`.cell[data-col="${col}"]`);
+        await stopBaseLoop(col);
 
-      if (isAnticipating && !skipSpinRequested) {
-        // decelerate only the anticipation column while keeping other reels spinning at a steady pace (slower)
-        let decelTotal = 420 + col * 220; // later columns slow longer
-        const minInterval = 26;
-        const maxInterval = 300;
-        const startTime = (typeof performance !== 'undefined') ? performance.now() : Date.now();
-        const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-        const otherSpinInterval = setInterval(() => {
-          const others = gridEl.querySelectorAll('.cell.spinning:not(.reel-anticipation)');
-          others.forEach(cell => { cell.innerHTML = imageTags[randomSpinSymbol()]; });
-        }, 40);
+        if (!fastForward()) {
+          // Phase 1: visibly decelerate on intermediate symbols. We deliberately
+          // stop BEFORE the target result, so the result can never be injected
+          // by finalizeColumn() without a physical reel-track transition.
+          const decelTotal = 560 + col * 90;
+          const decelStart = performance.now();
 
-        try {
-          while (!skipSpinRequested) {
-            const now = (typeof performance !== 'undefined') ? performance.now() : Date.now();
-            const elapsed = now - startTime;
+          while (!fastForward()) {
+            const elapsed = performance.now() - decelStart;
             if (elapsed >= decelTotal) break;
-            const t = Math.min(1, Math.max(0, elapsed / decelTotal));
-            const eased = easeOutCubic(t);
-            const interval = minInterval + (maxInterval - minInterval) * eased;
 
-            const isFinalPass = elapsed >= Math.max(0, decelTotal - interval * 1.5);
-            if (isFinalPass) {
-              // last frame during anticipation should show the actual hit symbols
-              colCells.forEach(cell => {
-                const row = parseInt(cell.dataset.row);
-                const sym = targetGrid[row][col];
-                cell.innerHTML = imageTags[sym] || '';
-              });
-            } else {
-              colCells.forEach(cell => { cell.innerHTML = imageTags[randomSpinSymbol()]; });
-            }
+            const t = Math.min(1, elapsed / decelTotal);
+            const eased = t * t * (3 - 2 * t);
+            const duration = 80 + 155 * eased;
+            const remaining = decelTotal - elapsed;
+            if (remaining < 95) break;
 
-            await new Promise(res => setTimeout(res, Math.max(6, Math.round(interval))));
+            const symbols = Array.from(colCells, () => randomSpinSymbol());
+            await slideReelCells(
+              colCells,
+              symbols,
+              Math.min(duration, Math.max(58, remaining)),
+              false
+            );
           }
-        } finally {
-          clearInterval(otherSpinInterval);
+
+          // Phase 2: ALWAYS land the real result with one complete eased pass.
+          // This is the key fix for the old "jump" on the last anticipation reel.
+          if (!fastForward()) {
+            const landingSymbols = Array.from(colCells, cell => {
+              const row = parseInt(cell.dataset.row);
+              return targetGrid[row][col];
+            });
+            const landingDuration = 250 + Math.max(0, col - 2) * 35;
+            await slideReelCells(colCells, landingSymbols, landingDuration, true);
+          }
         }
 
-        // show final hit frame before finishing
-        colCells.forEach(cell => {
-          const row = parseInt(cell.dataset.row);
-          const sym = targetGrid[row][col];
-          cell.innerHTML = imageTags[sym] || '';
-        });
-
-        // finalize symbols for this column
-        colCells.forEach(cell => {
-          const row = parseInt(cell.dataset.row);
-          const sym = targetGrid[row][col];
-          const k = row + ',' + col;
-
-          cell.classList.remove('spinning', 'reel-anticipation');
-          cell.classList.add('stopped');
-          cell.innerHTML = imageTags[sym] || '';
-
-          if (sym === SCATTER) currentScatters++;
-
-          if (multGrid && multGrid.has(k)) {
-            const badge = document.createElement('div');
-            badge.className = 'wild-mult-badge';
-            badge.textContent = 'x' + multGrid.get(k);
-            cell.appendChild(badge);
-          }
-
-          if (stickySet && stickySet.has(k)) {
-            cell.classList.add('sticky-wild');
-          }
-        });
-
-        // quieter per-reel stop during anticipation
+        currentScatters += finalizeColumn(col, true);
         playSound('reelStop');
       } else {
-        // quick finalize for normal (non-anticipation) reels
-        colCells.forEach(cell => {
-          const row = parseInt(cell.dataset.row);
-          const sym = targetGrid[row][col];
-          const k = row + ',' + col;
+        // Zatrzymujemy TYLKO tę kolumnę. Pozostałe reelLoops nie są awaitowane,
+        // więc przewijają się bez najmniejszej pauzy podczas lądowania.
+        await stopBaseLoop(col);
 
-          cell.classList.remove('spinning', 'reel-anticipation');
-          cell.classList.add('stopped');
-          cell.innerHTML = imageTags[sym] || '';
+        if (!fastForward()) {
+          const landingSymbols = Array.from(colCells, cell => {
+            const row = parseInt(cell.dataset.row);
+            return targetGrid[row][col];
+          });
+          await slideReelCells(colCells, landingSymbols, 86, true);
+        }
 
-          if (sym === SCATTER) currentScatters++;
-
-          if (multGrid && multGrid.has(k)) {
-            const badge = document.createElement('div');
-            badge.className = 'wild-mult-badge';
-            badge.textContent = 'x' + multGrid.get(k);
-            cell.appendChild(badge);
-          }
-
-          if (stickySet && stickySet.has(k)) {
-            cell.classList.add('sticky-wild');
-          }
-        });
-
-        // original punchy stop for normal reels
+        currentScatters += finalizeColumn(col);
         playSound('stop');
       }
+
+      // Naturalny odstęp między kolejnymi stopami. W tym czasie wszystkie
+      // jeszcze aktywne kolumny nadal przewijają się niezależnie.
+      if (!fastForward() && col < 4) {
+        await waitMs(isAnticipating ? 130 : 145);
+      }
     }
+
+    // Sprzątanie na wypadek skipa/turbo w połowie sekwencji.
+    for (let col = 0; col < 5; col++) reelRunning[col] = false;
+    await Promise.allSettled(reelLoops);
   }
 
   // --- CORE GAME LOOP ---
   async function runFreeSpins(initialFsCount, isSuper = false, showInitial = false) {
-    // If this is the first time the bonus is awarded, show a prominent "10 FREE SPINS" splash
     if (showInitial) {
       fsBanner.classList.add('on', 'initial');
       fsBanner.textContent = `${initialFsCount} FREE SPINS!`;
       playSound('bonus');
-      await new Promise(r => setTimeout(r, 1400));
+      await new Promise(r => setTimeout(r, isTurboEffective() ? 420 : 1400));
       fsBanner.classList.remove('initial');
     }
 
     fsBanner.classList.add('on');
     fsBanner.textContent = isSuper ? "SUPER ANARCHY SPINS · STICKY WILDS x2-x5" : "ANARCHY SPINS · WILD MULTIPLIER x2-x5";
-    // switch to bonus/super music
     playBonusMusic(isSuper);
 
     let fsLeft = initialFsCount;
     let totalFsWin = 0;
     const stickyWildsMap = new Map();
     const stickySet = new Set();
+    const spins = [];
+    let fsIndex = 0;
 
     while (fsLeft > 0) {
       fsLeft--;
       setTicker(`DARMOWY SPIN (POZOSTAŁO: ${fsLeft})`, [`Łączna wygrana bonusu: ${fmt(totalFsWin)}`]);
 
-      const g = spinReels(isSuper);
+      const g = await spinReelsAsync(isSuper, false, fairRandom);
       const multGrid = new Map();
 
       if (isSuper) {
@@ -1451,7 +2628,7 @@
         for (let c=0; c<5; c++) {
           const k = r+','+c;
           if (g[r][c] === WILD && !multGrid.has(k)) {
-            const m = rollWildMultiplier();
+            const m = await rollWildMultiplierAsync(fairRandom);
             multGrid.set(k, m);
             if (isSuper) {
               stickyWildsMap.set(k, m);
@@ -1463,19 +2640,23 @@
 
       await animateReelsLeftToRight(g, multGrid, stickySet);
 
-      const res = evaluateSpin(g, state.baseBet, true, multGrid);
+      const res = evaluateSpin(g, state.baseBet, true, multGrid, isSuper ? 1.0 : REGULAR_BONUS_PAYOUT_SCALE);
       totalFsWin += res.totalWin;
-
       if (res.freeSpinsWon > 0) fsLeft += res.freeSpinsWon;
+
+      spins.push({
+        index:fsIndex++, grid:gridClone(g), multipliers:multMapSnapshot(multGrid),
+        scatterCount:res.scatterCount, win:res.totalWin,
+        retrigger:res.freeSpinsWon, fsLeftAfter:fsLeft
+      });
 
       renderGrid(g, res.winCells, new Set(res.scatterCells), multGrid, stickySet);
       animateWinCells(res.winCells);
       if (res.totalWin > 0) playSound('win');
 
-      await new Promise(res => setTimeout(res, 1000));
+      await new Promise(res => setTimeout(res, isTurboEffective() ? 220 : 1000));
     }
 
-    // stop bonus music and resume bg
     stopBonusMusic();
     fsBanner.classList.remove('on');
     state.balance += totalFsWin;
@@ -1486,6 +2667,8 @@
     } else {
       setTicker("KONIEC BONUSU!", [`Suma wygranych z Free Spinów: ${fmt(totalFsWin)}`]);
     }
+
+    return {isSuper, initialFsCount, totalFsWin, spinsPlayed:spins.length, spins};
   }
 
   async function executeSpin(type = 'normal') {
@@ -1495,7 +2678,6 @@
     }
 
     handleBgMusic();
-
     state.busy = true;
 
     let cost = getActualCost();
@@ -1508,62 +2690,161 @@
       return;
     }
 
+    const roundMeta = {
+      bet: state.baseBet,
+      ante: type === 'normal' ? state.anteActive : false,
+      cost,
+      balanceBefore: state.balance
+    };
+    try {
+      await FairRNG.beginRound(type, roundMeta);
+    } catch(e) {
+      state.busy = false;
+      updateUI();
+      setTicker('RNG ZABLOKOWANY', [e.message], true);
+      setFairStatus(e.message, 'bad');
+      refreshFairUI();
+      return;
+    }
+
     state.balance -= cost;
     spinBtn.disabled = false;
     updateUI();
-
+    refreshFairUI();
     setTicker("KRĘCENIE BĘBNAMI...", []);
 
-    let g;
-    if (type === 'buy') g = spinReelsForBuyBonus();
-    else if (type === 'super') g = spinReelsForBuySuperBonus();
-    else g = spinReels();
+    try {
+      let g;
+      if (type === 'buy') g = await spinReelsForBuyBonusAsync(false, fairRandom);
+      else if (type === 'super') g = await spinReelsForBuySuperBonusAsync(false, fairRandom);
+      else g = await spinReelsAsync(false, state.anteActive, fairRandom);
 
-    await animateReelsLeftToRight(g);
+      await animateReelsLeftToRight(g);
+      await new Promise(res => setTimeout(res, 30));
 
-    await new Promise(res => setTimeout(res, 30));
+      const initialPayoutScale = type === 'super' ? 1.0 : BASE_GAME_PAYOUT_SCALE;
+      const res = evaluateSpin(g, state.baseBet, false, null, initialPayoutScale);
+      renderGrid(g, res.winCells, new Set(res.scatterCells));
+      animateWinCells(res.winCells);
 
-    const res = evaluateSpin(g, state.baseBet, false);
-    renderGrid(g, res.winCells, new Set(res.scatterCells));
-    animateWinCells(res.winCells);
-
-    if (res.totalWin > 0) {
-      state.balance += res.totalWin;
-      playSound('win');
-      setTicker(`WYGRANA: ${fmt(res.totalWin)}`, res.details.map(d => d.text));
-
-      if (res.totalWin >= cost * 5) {
-        await new Promise(r => showBigWin(res.totalWin, r));
+      if (res.totalWin > 0) {
+        state.balance += res.totalWin;
+        playSound('win');
+        setTicker(`WYGRANA: ${fmt(res.totalWin)}`, res.details.map(d => d.text));
+        if (res.totalWin >= cost * 5) await new Promise(r => showBigWin(res.totalWin, r));
+      } else {
+        setTicker("BRAK WYGRANEJ", [], true);
       }
-    } else {
-      setTicker("BRAK WYGRANEJ", [], true);
+      updateUI();
+
+      let bonus = null;
+      const bonusTriggered = res.freeSpinsWon > 0 || type === 'buy' || type === 'super';
+      const superTriggered = type === 'super' || res.scatterCount >= 5;
+      if (bonusTriggered) {
+        const spins = res.freeSpinsWon > 0 ? res.freeSpinsWon : 10;
+        await new Promise(res2 => setTimeout(res2, isTurboEffective() ? 220 : 800));
+        bonus = await runFreeSpins(spins, superTriggered, true);
+      }
+
+      const result = {
+        baseGrid:gridClone(g), baseWin:res.totalWin,
+        scatterCount:res.scatterCount, freeSpinsWon:res.freeSpinsWon,
+        bonusTriggered, superTriggered, bonus,
+        totalWin:res.totalWin + (bonus ? bonus.totalFsWin : 0)
+      };
+
+      FairRNG.endRound({
+        result,
+        balanceAfter: state.balance
+      });
+
+      if (state.balance <= 0) bankruptOverlay.classList.add('open');
+    } catch(e) {
+      console.error('Spin/RNG error:', e);
+      FairRNG.abortRound(e?.message || 'spin error');
+      setTicker('BŁĄD RNG / SPINU', [e?.message || String(e)], true);
     }
-
-    updateUI();
-
-    if (res.freeSpinsWon > 0 || type === 'buy' || type === 'super') {
-      const isSuper = type === 'super' || res.scatterCount >= 5;
-      const spins = res.freeSpinsWon > 0 ? res.freeSpinsWon : 10;
-      await new Promise(res => setTimeout(res, 800));
-      // showInitial = true when the free-spins are being started from a normal/buy/super spin
-      await runFreeSpins(spins, isSuper, true);
-    }
-
-    if (state.balance <= 0) bankruptOverlay.classList.add('open');
 
     state.busy = false;
     updateUI();
+    refreshFairUI();
   }
 
   spinBtn.addEventListener('click', () => executeSpin('normal'));
   buyBonusBtn.addEventListener('click', () => executeSpin('buy'));
   buySuperBonusBtn.addEventListener('click', () => executeSpin('super'));
 
-  window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') {
-      e.preventDefault();
-      executeSpin('normal');
+  function updateTurboUI() {
+    turboBtn.classList.toggle('turbo-active', turboActive);
+    turboBtn.textContent = turboActive ? '⚡' : '⚡';
+    turboBtn.title = turboActive
+      ? 'Turbo WŁ. — kliknij, aby wyłączyć'
+      : 'Turbo WYŁ. — szybkie przejście do wyniku';
+    turboBtn.setAttribute('aria-pressed', turboActive ? 'true' : 'false');
+  }
+
+  turboBtn.addEventListener('click', () => {
+    turboActive = !turboActive;
+    // Włączenie Turbo podczas kręcenia ma natychmiast przyspieszyć bieżący spin.
+    if (turboActive && state.busy) skipSpinRequested = true;
+    updateTurboUI();
+  });
+
+  async function runSpaceHoldLoop() {
+    if (spaceHoldLoopRunning) return;
+    spaceHoldLoopRunning = true;
+
+    try {
+      while (spaceHeld) {
+        // Jeśli runda już trwa, keydown ustawia skipSpinRequested. Pętla tylko
+        // czeka na faktyczne zakończenie logiki rundy, aby nie uruchomić dwóch naraz.
+        while (spaceHeld && state.busy) {
+          await new Promise(res => setTimeout(res, SPACE_HOLD_POLL_MS));
+        }
+        if (!spaceHeld) break;
+
+        // Rozpocznij dokładnie jedną pełną rundę i poczekaj na jej zakończenie.
+        await executeSpin('normal');
+        if (!spaceHeld) break;
+
+        // Pozostaw wynik na ekranie, aby gracz zdążył zobaczyć symbole i wygraną.
+        await new Promise(res => setTimeout(res, isTurboEffective() ? TURBO_HOLD_RESULT_DWELL_MS : SPACE_HOLD_RESULT_DWELL_MS));
+      }
+    } finally {
+      spaceHoldLoopRunning = false;
     }
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+
+    // Powtórzenia generowane przez system przy trzymaniu klawisza ignorujemy,
+    // żeby nie spamować skipem ani nowymi rundami.
+    if (e.repeat || spaceHeld) return;
+
+    spaceHeld = true;
+    armSpaceHoldTurbo();
+
+    // Świeże naciśnięcie spacji podczas spinu = FAST FORWARD bieżącej animacji.
+    // Jeśli użytkownik nadal trzyma spację po zakończeniu rundy, pętla poniżej
+    // przejdzie naturalnie w ograniczony autoplay.
+    if (state.busy) skipSpinRequested = true;
+
+    runSpaceHoldLoop();
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    spaceHeld = false;
+    releaseSpaceHoldTurbo();
+  });
+
+  // Zabezpieczenie przed "zawieszoną" spacją po przełączeniu karty/okna.
+  window.addEventListener('blur', () => {
+    spaceHeld = false;
+    releaseSpaceHoldTurbo();
   });
 
   bankruptReset.addEventListener('click', () => {
@@ -1577,6 +2858,10 @@
   const initialGrid = Array.from({length: 5}, () => Array(5).fill('anarchy'));
   renderGrid(initialGrid);
   updateUI();
+  FairRNG.ensureReady().then(() => { setFairStatus('Web Crypto RNG gotowy. Gameplay używa HMAC-SHA256 bez fallbacku.', 'ok'); refreshFairUI(); })
+    .catch(e => { setFairStatus(e.message, 'bad'); refreshFairUI(); });
+  updateTurboUI();
+  refreshFairUI();
   // Ensure audio elements reflect initial slider value immediately
   try {
     if (typeof volumeSlider !== 'undefined' && volumeSlider) volumeSlider.value = String(currentVolume);
